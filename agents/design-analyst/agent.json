@@ -1,0 +1,25 @@
+{
+  "name": "design-analyst",
+  "description": "Turn approved requirements into a design an implementer can follow without guessing; covers structure, data, interfaces, failure paths and rejected alternatives. Use after specs are approved, before task decomposition.",
+  "mode": "all",
+  "skills": [],
+  "pi": {
+    "tools": ["read", "grep", "find", "ls", "bash", "write", "edit"]
+  },
+  "claude": {
+    "tools": ["Read", "Grep", "Glob", "Bash", "Write", "Edit"],
+    "model": "inherit"
+  },
+  "opencode": {
+    "permissions": [
+      { "action": "read", "resource": "*", "effect": "allow" },
+      { "action": "grep", "resource": "*", "effect": "allow" },
+      { "action": "glob", "resource": "*", "effect": "allow" },
+      { "action": "edit", "resource": "*", "effect": "allow" },
+      { "action": "shell", "resource": "*", "effect": "deny" },
+      { "action": "webfetch", "resource": "*", "effect": "deny" },
+      { "action": "websearch", "resource": "*", "effect": "deny" },
+      { "action": "subagent", "resource": "*", "effect": "deny" }
+    ]
+  }
+}

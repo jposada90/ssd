@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "id": "MAIN-00",
+  "version": "1.0",
+  "name": "main",
+  "description": "Roadmap raíz del proyecto. Sustituye esta descripción por lo que el proyecto entrega en conjunto.",
+  "level": "main",
+  "developmentType": "ssd",
+  "status": "draft",
+  "openQuestions": [],
+  "gitInfo": {
+    "mainBranch": "main",
+    "parentBranch": "main",
+    "featureBranch": "main",
+    "statusBranch": "development"
+  },
+  "deliver": [],
+  "tasks": []
+}

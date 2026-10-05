@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0",
+  "id": "F-02",
+  "version": "1.0",
+  "name": "Pasarela de pago",
+  "description": "Cobro, reembolso y recepción de webhooks del proveedor de pago. Se descompondrá porque los webhooks traen su propio estado y sus pruebas.",
+  "level": "feature",
+  "developmentType": "ssd",
+  "status": "draft",
+  "openQuestions": [
+    "¿Qué proveedor de pago se integra en el primer lanzamiento?"
+  ],
+  "blockedBy": [],
+  "deliver": [
+    "Cobro y reembolso operantes"
+  ],
+  "ref": {
+    "design": [
+      "design.md#payments"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T-012",
+      "name": "Cobrar una orden",
+      "level": "task",
+      "status": "draft",
+      "whatToBuild": "El comprador paga una orden confirmada y esta queda como pagada.",
+      "acceptanceCriteria": [
+        "Una orden confirmada puede pagarse y su estado pasa a pagada.",
+        "Un cobro rechazado deja la orden pendiente y muestra el motivo."
+      ],
+      "blockedBy": [
+        "T-010"
+      ],
+      "ref": {
+        "tests": [
+          "TEST-PAY-001"
+        ]
+      },
+      "phase": "design"
+    },
+    {
+      "id": "T-013",
+      "name": "Procesar webhook de pago",
+      "level": "task",
+      "status": "draft",
+      "whatToBuild": "El sistema confirma el pago a partir del webhook del proveedor.",
+      "acceptanceCriteria": [
+        "Un webhook válido actualiza el estado de la orden.",
+        "Un webhook con firma inválida se rechaza sin tocar la orden."
+      ],
+      "blockedBy": [
+        "T-012"
+      ],
+      "ref": {
+        "tests": [
+          "TEST-PAY-002"
+        ]
+      },
+      "phase": "design"
+    }
+  ],
+  "phase": "design"
+}

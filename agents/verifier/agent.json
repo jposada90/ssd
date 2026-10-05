@@ -1,0 +1,25 @@
+{
+  "name": "verifier",
+  "description": "Check whether a change meets its acceptance criteria across tests, build, static checks, manual behaviour and spec consistency; report defects without fixing them. Use after apply, before archive.",
+  "mode": "all",
+  "skills": [],
+  "pi": {
+    "tools": ["read", "grep", "find", "ls", "bash"]
+  },
+  "claude": {
+    "tools": ["Read", "Grep", "Glob", "Bash"],
+    "model": "inherit"
+  },
+  "opencode": {
+    "permissions": [
+      { "action": "read", "resource": "*", "effect": "allow" },
+      { "action": "grep", "resource": "*", "effect": "allow" },
+      { "action": "glob", "resource": "*", "effect": "allow" },
+      { "action": "edit", "resource": "*", "effect": "deny" },
+      { "action": "shell", "resource": "*", "effect": "allow" },
+      { "action": "webfetch", "resource": "*", "effect": "deny" },
+      { "action": "websearch", "resource": "*", "effect": "deny" },
+      { "action": "subagent", "resource": "*", "effect": "deny" }
+    ]
+  }
+}

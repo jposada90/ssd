@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0",
+  "id": "F-04",
+  "version": "1.0",
+  "name": "Búsqueda de productos",
+  "description": "Búsqueda por texto y filtros sobre el catálogo. Es una feature completa, sin descomposición pendiente.",
+  "level": "feature",
+  "developmentType": "ssd",
+  "status": "ready",
+  "openQuestions": [],
+  "decisions": [
+    {
+      "date": "2026-10-05",
+      "question": "¿El buscador necesita soporte multi-idioma en el primer lanzamiento?",
+      "resolution": "No. El usuario autoriza comenzar sin soporte multi-idioma; se difiere a una versión posterior.",
+      "authorizedBy": "jp"
+    }
+  ],
+  "blockedBy": [
+    "F-03"
+  ],
+  "deliver": [
+    "Búsqueda operable con filtros"
+  ],
+  "ref": {
+    "design": [
+      "design.md#search"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T-021",
+      "name": "Búsqueda por texto",
+      "level": "task",
+      "status": "ready",
+      "whatToBuild": "El comprador escribe texto y ve resultados relevantes.",
+      "acceptanceCriteria": [
+        "Una búsqueda por nombre devuelve el producto coincidente."
+      ],
+      "blockedBy": [],
+      "ref": {
+        "tests": [
+          "TEST-SEARCH-001"
+        ]
+      },
+      "phase": "apply"
+    }
+  ],
+  "phase": "apply"
+}

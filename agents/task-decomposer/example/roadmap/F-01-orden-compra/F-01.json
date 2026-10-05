@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0",
+  "id": "F-01",
+  "version": "1.0",
+  "name": "Orden de compra",
+  "description": "El comprador crea una orden, la paga y sigue su estado. Se descompondrá porque incluye pagos, que tienen su propio ciclo.",
+  "level": "feature",
+  "developmentType": "ssd",
+  "status": "draft",
+  "openQuestions": [
+    "¿Se admite cancelación parcial de una orden?"
+  ],
+  "blockedBy": [
+    "T-001"
+  ],
+  "deliver": [
+    "Flujo de compra verificable de punta a punta"
+  ],
+  "ref": {
+    "requirements": [
+      "REQ-001"
+    ],
+    "design": [
+      "design.md#order-status"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "F-02",
+      "name": "Pasarela de pago",
+      "level": "feature",
+      "status": "draft",
+      "file": "F-02-pagos.json",
+      "description": "Cobro, reembolso y webhooks del proveedor.",
+      "blockedBy": []
+    },
+    {
+      "id": "T-010",
+      "name": "Crear orden con líneas",
+      "level": "task",
+      "status": "ready",
+      "whatToBuild": "El comprador crea una orden con varios productos y la ve confirmada con su total.",
+      "acceptanceCriteria": [
+        "Dada una cesta con dos productos, el comprador ve una orden con ambos y el total correcto.",
+        "El stock de cada producto se descuenta al confirmar."
+      ],
+      "blockedBy": [
+        "T-001"
+      ],
+      "ref": {
+        "requirements": [
+          "REQ-001"
+        ],
+        "tests": [
+          "TEST-ORDER-001"
+        ]
+      },
+      "phase": "verify"
+    },
+    {
+      "id": "T-011",
+      "name": "Consultar estado de la orden",
+      "level": "task",
+      "status": "ready",
+      "whatToBuild": "El comprador consulta el estado de su orden y ve el historial de cambios.",
+      "acceptanceCriteria": [
+        "Dada una orden existente, el comprador ve su estado actual.",
+        "El historial muestra cada cambio de estado con fecha."
+      ],
+      "blockedBy": [
+        "T-010"
+      ],
+      "ref": {
+        "requirements": [
+          "REQ-002"
+        ]
+      },
+      "phase": "archive"
+    }
+  ]
+}

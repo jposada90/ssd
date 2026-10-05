@@ -1,0 +1,77 @@
+{
+  "$comment": "Tiers are harness-neutral. The project stores tier+effort; this file maps them to concrete model ids. Change ids here, not in the project.",
+  "currentSddVersion": "1.0",
+  "tiers": {
+    "deep": {
+      "label": "razonamiento fuerte",
+      "claude": "opus",
+      "opencode": "anthropic/claude-opus-4-5",
+      "pi": "opus",
+      "defaultEffort": "high"
+    },
+    "standard": {
+      "label": "equilibrado",
+      "claude": "sonnet",
+      "opencode": "anthropic/claude-sonnet-4-5",
+      "pi": "sonnet",
+      "defaultEffort": "medium"
+    },
+    "light": {
+      "label": "ligero",
+      "claude": "haiku",
+      "opencode": "anthropic/claude-haiku-4-5",
+      "pi": "haiku",
+      "defaultEffort": "low"
+    }
+  },
+  "effortLevels": ["low", "medium", "high", "xhigh", "max"],
+  "recommendations": {
+    "initiative-proposer": {
+      "tier": "deep",
+      "effort": "high",
+      "reason": "Divergir antes de converger. Una dirección equivocada aquí arrastra specs, diseño y tareas; el coste de esta fase es el más barato de todo el ciclo."
+    },
+    "requirements-analyst": {
+      "tier": "deep",
+      "effort": "high",
+      "reason": "Muchas decisiones pequeñas y verificables. Un umbral inventado o un criterio no medible aquí se propaga a las pruebas y contamina el verify."
+    },
+    "design-analyst": {
+      "tier": "deep",
+      "effort": "high",
+      "reason": "Razonamiento sobre trade-offs de estructura y datos. Es la fase donde un error cuesta más caro de revertir, y la que peor se detecta en la verificación posterior."
+    },
+    "task-decomposer": {
+      "tier": "standard",
+      "effort": "medium",
+      "reason": "Descomponer y validar contra el schema es sobre todo mecánico una vez el diseño existe. La parte difícil ya la hizo design-analyst."
+    },
+    "worker": {
+      "tier": "standard",
+      "effort": "high",
+      "reason": "Implementar consume mucho volumen de tokens y no necesita razonamiento profundo, pero sí cuidado con el alcance. Esfuerzo alto, tier estándar."
+    },
+    "verifier": {
+      "tier": "deep",
+      "effort": "high",
+      "reason": "Es el único control del cambio. Un verificador flojo sella un defecto que nadie detectará después; pagar modelo aquí es más barato que el bug."
+    },
+    "documentation-maintainer": {
+      "tier": "standard",
+      "effort": "medium",
+      "reason": "Documentación de producto requiere precisión y verification, pero el contenido ya está decidido por el diseño.",
+      "byPhase": {
+        "archive": {
+          "tier": "light",
+          "effort": "low",
+          "reason": "Archivar y traducir es mecánico cuando el contenido ya está asentado. Aquí el modelo fuerte es dinero tirado."
+        }
+      }
+    },
+    "explorer": {
+      "tier": "light",
+      "effort": "medium",
+      "reason": "Búsqueda y lectura. Necesita muchos tokens para mucho texto, que es exactamente lo contrario de un modelo de razonamiento caro."
+    }
+  }
+}

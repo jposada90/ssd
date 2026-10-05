@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.local/roadmap.schema.json",
+  "title": "RoadmapNode",
+  "description": "Unit of work in a roadmap tree. Every file under roadmap/ at any depth validates against this schema, so a feature file and its parent share one format and can be subdivided the same way.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "name",
+    "description",
+    "level",
+    "status",
+    "openQuestions",
+    "tasks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Version of this schema the document targets. Bump the major when a removal or rename lands, the minor for additive fields.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable unique identifier across the whole roadmap. Never reused, never renumbered. Parent IDs live in the enclosing node's tasks[].",
+      "pattern": "^[A-Z][A-Z0-9]*-[0-9]{2,}$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of this document's content. Bump the minor when fields change, the major when the scope changes.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Concise title. The root document uses \"main\".",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "description": {
+      "type": "string",
+      "description": "What this node delivers and why, in a few sentences. Observable outcome, not an implementation list.",
+      "minLength": 1
+    },
+    "level": {
+      "type": "string",
+      "description": "Depth of this node. A node with children is at most one level above them.",
+      "enum": ["main", "feature", "task", "subtask", "issue"]
+    },
+    "developmentType": {
+      "type": "string",
+      "description": "Why this work exists. Defaults to ssd when omitted.",
+      "enum": ["ssd", "research", "bug", "hotfix"]
+    },
+    "phase": {
+      "type": "string",
+      "description": "SDD stage this node currently sits in. Optional on purpose: a node that spans stages, or whose stage is not yet decided, omits it rather than guessing. Expected on a leaf task that someone can pick up.",
+      "enum": ["proposal", "spec", "design", "task", "apply", "verify", "archive"]
+    },
+    "status": {
+      "type": "string",
+      "description": "State of this node's work. A node is completed when every child is completed. blocked means it waits on something outside this roadmap; blockedBy lists internal dependencies.",
+      "enum": [
+        "draft",
+        "ready",
+        "blocked",
+        "inProgress",
+        "paused",
+        "completed",
+        "canceled"
+      ]
+    },
+    "openQuestions": {
+      "type": "array",
+      "description": "Decisions needed before this node can reach ready. A node with open questions cannot be ready unless the user authorized it, which is recorded in decisions.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "decisions": {
+      "type": "array",
+      "description": "Authorizations the user granted that override a blocking question. Without an entry here, an open question is still open.",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "gitInfo": {
+      "type": "object",
+      "description": "Branch bookkeeping. Omit when the project has no branch per node.",
+      "required": ["mainBranch", "parentBranch", "featureBranch"],
+      "properties": {
+        "mainBranch": { "type": "string", "minLength": 1 },
+        "parentBranch": { "type": "string", "minLength": 1 },
+        "featureBranch": { "type": "string", "minLength": 1 },
+        "statusBranch": {
+          "type": "string",
+          "enum": ["development", "in_pr", "merged", "stale", "abandoned"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "blockedBy": {
+      "type": "array",
+      "description": "IDs of nodes in this roadmap that must complete first. Internal edges only; external reasons belong in openQuestions.",
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]{2,}$" },
+      "uniqueItems": true
+    },
+    "deliver": {
+      "type": "array",
+      "description": "Concrete artifacts this node produces.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "ref": {
+      "type": "object",
+      "description": "Where the requirements, tests and documents that constrain this node live.",
+      "properties": {
+        "requirements": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "tests": {
+          "type": "array",
+          "description": "Test IDs that verify this node.",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "design": {
+          "type": "array",
+          "description": "Design documents or anchored sections, e.g. design.md#order-status.",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "documentation": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "relatedBranches": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Children of this node. A child with its own file is a reference; a child inlined here is a leaf. JSON Schema cannot compare object members, so IDs must be unique and the dependency graph acyclic by construction: the agent checks both, and a validator or review catches regressions.",
+      "items": { "$ref": "#/$defs/taskEntry" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "description": "A user authorization that resolved or overrode a blocking question.",
+      "required": ["date", "question", "resolution", "authorizedBy"],
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "question": {
+          "type": "string",
+          "description": "The openQuestion text this decision answers, or the question the user chose to override.",
+          "minLength": 1
+        },
+        "resolution": {
+          "type": "string",
+          "description": "What was decided, or that the user authorized proceeding with the risk unresolved.",
+          "minLength": 1
+        },
+        "authorizedBy": {
+          "type": "string",
+          "description": "Who granted the authorization. Never an agent: the user authorizes, the agent records.",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "taskEntry": {
+      "type": "object",
+      "required": ["id", "name", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique within this node's children. MAIN- is reserved for the root.",
+          "pattern": "^[A-Z][A-Z0-9]*-[0-9]{2,}$",
+          "not": { "pattern": "^MAIN-" }
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "The end-to-end behaviour this child makes work. Omit when the child is a bare reference.",
+          "minLength": 1
+        },
+        "level": {
+          "type": "string",
+          "enum": ["feature", "task", "subtask", "issue"]
+        },
+        "phase": {
+          "type": "string",
+          "description": "SDD stage this child is in. Omit when the child spans stages or the stage is undecided; expected on a leaf that someone can pick up.",
+          "enum": ["proposal", "spec", "design", "task", "apply", "verify", "archive"]
+        },
+        "decisions": {
+          "type": "array",
+          "description": "User authorizations that released this child despite an open question.",
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to the child's document, relative to the directory holding this document. Siblings live together, so a child file is just <child-id>.json. Present when the child has its own document; omit for a leaf.",
+          "pattern": "^[A-Za-z0-9._/-]+\\.json$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "ready",
+            "blocked",
+            "inProgress",
+            "paused",
+            "completed",
+            "canceled"
+          ]
+        },
+        "whatToBuild": {
+          "type": "string",
+          "description": "One-sentence outcome statement. Prefer over description for leaves.",
+          "minLength": 1
+        },
+        "blockedBy": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]{2,}$" },
+          "uniqueItems": true
+        },
+        "deliver": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "description": "How a reviewer confirms this child is done. Vague criteria are worse than none.",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "ref": {
+          "type": "object",
+          "properties": {
+            "requirements": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "tests": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "design": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "documentation": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "relatedBranches": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "anyOf": [
+          { "properties": { "status": { "const": "ready" } }, "required": ["status"] },
+          { "properties": { "phase": { "const": "apply" } }, "required": ["phase"] }
+        ]
+      },
+      "then": {
+        "description": "A node that is ready or in apply must have every open question resolved, either removed or answered by a decision.",
+        "anyOf": [
+          { "properties": { "openQuestions": { "maxItems": 0 } }, "required": ["openQuestions"] },
+          {
+            "properties": { "decisions": { "minItems": 1 } },
+            "required": ["decisions"]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": { "level": { "const": "main" } },
+        "required": ["level"]
+      },
+      "then": {
+        "properties": {
+          "name": { "const": "main" },
+          "id": { "const": "MAIN-00" }
+        },
+        "description": "The root document is always MAIN-00 named main."
+      }
+    }
+  ],
+  "additionalProperties": false
+}

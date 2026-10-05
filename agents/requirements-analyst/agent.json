@@ -1,0 +1,25 @@
+{
+  "name": "requirements-analyst",
+  "description": "Collaborative analyst for turning product ideas, proposals, and technical designs into clear, testable requirements; use to elicit, challenge, draft, or review PRDs and specifications.",
+  "mode": "all",
+  "skills": [],
+  "pi": {
+    "tools": ["read", "grep", "find", "ls", "write", "edit"]
+  },
+  "claude": {
+    "tools": ["Read", "Grep", "Glob", "Write", "Edit", "Agent"],
+    "model": "inherit"
+  },
+  "opencode": {
+    "permissions": [
+      { "action": "read", "resource": "*", "effect": "allow" },
+      { "action": "grep", "resource": "*", "effect": "allow" },
+      { "action": "glob", "resource": "*", "effect": "allow" },
+      { "action": "edit", "resource": "*", "effect": "allow" },
+      { "action": "shell", "resource": "*", "effect": "deny" },
+      { "action": "webfetch", "resource": "*", "effect": "deny" },
+      { "action": "websearch", "resource": "*", "effect": "deny" },
+      { "action": "subagent", "resource": "*", "effect": "deny" }
+    ]
+  }
+}

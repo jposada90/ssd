@@ -1,0 +1,6 @@
+.history
+.ignore
+.vscode
+__pycache__/
+*.pyc
+node_modules/

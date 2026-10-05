@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "id": "F-03",
+  "version": "1.0",
+  "name": "Catálogo de productos",
+  "description": "Navegación y ficha de producto. Se descompondrá porque la búsqueda tiene dependencias propias.",
+  "level": "feature",
+  "developmentType": "ssd",
+  "status": "draft",
+  "openQuestions": [],
+  "deliver": [
+    "Catálogo navegable"
+  ],
+  "tasks": [
+    {
+      "id": "F-04",
+      "name": "Búsqueda de productos",
+      "level": "feature",
+      "status": "draft",
+      "file": "F-04-busqueda.json",
+      "description": "Búsqueda por texto y filtros.",
+      "blockedBy": []
+    },
+    {
+      "id": "T-020",
+      "name": "Ficha de producto",
+      "level": "task",
+      "status": "ready",
+      "whatToBuild": "El comprador abre un producto y ve sus datos, precio y disponibilidad.",
+      "acceptanceCriteria": [
+        "Dada un producto existente, su ficha muestra precio y disponibilidad.",
+        "Un producto sin stock aparece marcado como agotado."
+      ],
+      "blockedBy": [],
+      "ref": {
+        "tests": [
+          "TEST-CAT-001"
+        ]
+      },
+      "phase": "task"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0",
+  "id": "MAIN-00",
+  "version": "1.0",
+  "name": "main",
+  "description": "Roadmap raíz del producto: compra, catálogo y pedidos. Ejemplo de documento principal; los nodos que necesitan descomponerse cuelgan de aquí en su propia carpeta.",
+  "level": "main",
+  "developmentType": "ssd",
+  "status": "draft",
+  "openQuestions": [
+    "¿Se incluye multi-tenant en el primer lanzamiento?"
+  ],
+  "gitInfo": {
+    "mainBranch": "main",
+    "parentBranch": "main",
+    "featureBranch": "feat/roadmap-inicial",
+    "statusBranch": "development"
+  },
+  "deliver": [
+    "Flujo completo de compra operante",
+    "Catálogo navegable con búsqueda"
+  ],
+  "ref": {
+    "requirements": [
+      "REQ-001",
+      "REQ-002"
+    ],
+    "design": [
+      "design.md#arquitectura-general"
+    ],
+    "documentation": [
+      "docs/adr/0001-monorepo.md"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "F-01",
+      "name": "Orden de compra",
+      "level": "feature",
+      "status": "draft",
+      "file": "F-01-orden-compra/F-01.json",
+      "description": "El comprador crea una orden, la paga y sigue su estado.",
+      "blockedBy": []
+    },
+    {
+      "id": "F-03",
+      "name": "Catálogo de productos",
+      "level": "feature",
+      "status": "draft",
+      "file": "F-03-catalogo/F-03.json",
+      "blockedBy": []
+    },
+    {
+      "id": "T-001",
+      "name": "Healthcheck del servicio",
+      "level": "task",
+      "status": "ready",
+      "whatToBuild": "El servicio expone un endpoint de salud que los despliegues pueden consultar.",
+      "acceptanceCriteria": [
+        "GET /health devuelve 200 con el estado del servicio.",
+        "Un servicio caído devuelve 503."
+      ],
+      "blockedBy": [],
+      "ref": {
+        "tests": [
+          "TEST-HEALTH-001"
+        ]
+      },
+      "phase": "apply"
+    }
+  ]
+}

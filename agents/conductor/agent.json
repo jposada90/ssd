@@ -1,0 +1,51 @@
+{
+  "name": "conductor",
+  "description": "Direct the project's SDD cycle (proposal, specs, design, task, apply, verify, archive): runs the preflight checks, routes each phase to the agent that owns it, records user authorizations, and archives finished work. Use as the entry point for any feature, task or bug.",
+  "mode": "all",
+  "skills": [],
+  "pi": {
+    "tools": ["read", "grep", "find", "ls", "bash", "write", "edit", "subagent"],
+    "allowNestedSubagents": true,
+    "allowedAgents": [
+      "initiative-proposer",
+      "requirements-analyst",
+      "design-analyst",
+      "task-decomposer",
+      "worker",
+      "verifier",
+      "documentation-maintainer"
+    ],
+    "maxSubagentDepth": 1
+  },
+  "claude": {
+    "tools": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash",
+      "Write",
+      "Edit",
+      "Agent"
+    ],
+    "model": "inherit"
+  },
+  "opencode": {
+    "permissions": [
+      { "action": "read", "resource": "*", "effect": "allow" },
+      { "action": "grep", "resource": "*", "effect": "allow" },
+      { "action": "glob", "resource": "*", "effect": "allow" },
+      { "action": "edit", "resource": "*", "effect": "allow" },
+      { "action": "shell", "resource": "*", "effect": "allow" },
+      { "action": "webfetch", "resource": "*", "effect": "deny" },
+      { "action": "websearch", "resource": "*", "effect": "deny" },
+      { "action": "subagent", "resource": "*", "effect": "deny" },
+      { "action": "subagent", "resource": "initiative-proposer", "effect": "allow" },
+      { "action": "subagent", "resource": "requirements-analyst", "effect": "allow" },
+      { "action": "subagent", "resource": "design-analyst", "effect": "allow" },
+      { "action": "subagent", "resource": "task-decomposer", "effect": "allow" },
+      { "action": "subagent", "resource": "worker", "effect": "allow" },
+      { "action": "subagent", "resource": "verifier", "effect": "allow" },
+      { "action": "subagent", "resource": "documentation-maintainer", "effect": "allow" }
+    ]
+  }
+}

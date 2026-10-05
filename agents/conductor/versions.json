@@ -1,0 +1,29 @@
+{
+  "$comment": "Versiones del SDD. current es la que entiende este agente. Cada versión declara el layout que espera, de modo que sdd-check.sh detecta tanto un cambio de versión como un drift silencioso (alguien movió un directorio). migrations contiene los pasos de cada versión nueva; una versión ya publicada no se edita.",
+  "current": "1.0",
+  "versions": {
+    "1.0": {
+      "summary": "Layout inicial del ciclo SDD.",
+      "layout": {
+        "agentsFile": "AGENTS.md",
+        "configFile": "sdd.json",
+        "workingDir": "changes",
+        "archiveEs": "doc/es",
+        "archiveEn": "doc/en",
+        "glossary": "doc/glossary.md",
+        "roadmapDir": "roadmap",
+        "roadmapMain": "roadmap/main.json",
+        "roadmapSchema": "roadmap/schema/roadmap.schema.json",
+        "roadmapChecker": "roadmap/schema/check_roadmap.py",
+        "scriptsDir": "scripts",
+        "symlinks": [
+          "CLAUDE.md",
+          "GEMINI.md",
+          ".cursorrules",
+          ".github/copilot-instructions.md"
+        ]
+      },
+      "migrations": []
+    }
+  }
+}

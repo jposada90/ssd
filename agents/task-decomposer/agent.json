@@ -1,0 +1,25 @@
+{
+  "name": "task-decomposer",
+  "description": "Turn a design document into a validated tree of roadmap JSON documents (vertical slices with blocking edges); use to break down a feature, plan an epic, or decompose a spec into implementable tasks.",
+  "mode": "all",
+  "skills": [],
+  "pi": {
+    "tools": ["read", "grep", "find", "ls", "write", "edit", "bash"]
+  },
+  "claude": {
+    "tools": ["Read", "Grep", "Glob", "Bash", "Write", "Edit"],
+    "model": "inherit"
+  },
+  "opencode": {
+    "permissions": [
+      { "action": "read", "resource": "*", "effect": "allow" },
+      { "action": "grep", "resource": "*", "effect": "allow" },
+      { "action": "glob", "resource": "*", "effect": "allow" },
+      { "action": "edit", "resource": "*", "effect": "allow" },
+      { "action": "shell", "resource": "*", "effect": "allow" },
+      { "action": "webfetch", "resource": "*", "effect": "deny" },
+      { "action": "websearch", "resource": "*", "effect": "deny" },
+      { "action": "subagent", "resource": "*", "effect": "deny" }
+    ]
+  }
+}
