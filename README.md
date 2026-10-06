@@ -44,14 +44,14 @@ informes de verificación: enruta al agente de cada fase y responde del ciclo en
 
 En cada sesión, en este orden:
 
-1. **Init**, si el proyecto no tiene `.sdd.json`. Crea `AGENTS.md`, `changes/`, `doc/es`,
+1. **Init**, si el proyecto no tiene `.sdd/`. Crea `AGENTS.md`, `changes/`, `doc/es`,
    `doc/en`, `doc/glossary.md`, `roadmap/` y `scripts/`. **Antes te pregunta para qué harnesses
    es el repo**, y solo crea los entry points de esos: un `CLAUDE.md` caducado de un harness que
    nadie abre es peor que no tener el fichero.
 2. **Versión.** Compara la versión del SDD y su layout con lo que espera el agente. Detecta el
    cambio de versión y también el drift silencioso. Si hay migración registrada, te enseña el
    plan en `--dry-run` antes de preguntar.
-3. **Modelos.** Recomienda modelo y esfuerzo por subagente, muestra lo guardado en `.sdd.json`
+3. **Modelos.** Recomienda modelo y esfuerzo por subagente, muestra lo guardado en `.sdd/sdd.json`
    contra lo recomendado, y pregunta siempre, incluso si hay elección guardada.
 4. **Preflight.** Tres checks: build/test/lint, árbol de git, consistencia del roadmap.
 5. **Enrutado.** Lee `TreeTask.md` y clasifica la petición: tarea existente, nueva, bug, o
@@ -215,25 +215,25 @@ fuente única y el `i18n-check.sh`, que compara estructura entre los dos idiomas
 
 ## Los scripts
 
-Todos en `agents/conductor/scripts/`, y copiados al proyecto en su `scripts/` al inicializar, para
+Todos en `agents/conductor/scripts/`, y copiados al proyecto en `.sdd/scripts/` al inicializar, para
 que el ciclo sea verificable sin este repo presente.
 
 | Script | Para qué |
 |---|---|
-| `init-sdd.sh` | Crea el andamiaje. Pregunta para qué harnesses es el repo y solo enlaza esos entry points. `--for <nombres>` lo hace no interactivo. Idempotente. |
+| `init-sdd.sh` | Crea el andamiaje y `.sdd/`. Pregunta para qué harnesses es el repo y solo enlaza esos entry points. `--for <nombres>` lo hace no interactivo. Idempotente. |
 | `preflight.sh` | Lee el bloque `Verification` de `AGENTS.md` y ejecuta build, test, lint, typecheck y format. Distingue fallo de omitido. |
 | `git-check.sh` | Estado del árbol de trabajo: staged, modificados y sin seguimiento. |
 | `sdd_check.py` | Compara la versión y el layout con lo que espera el agente. Detecta el cambio de versión y el drift silencioso, y verifica solo los entry points elegidos. |
 | `migrate_sdd.py` | Aplica la migración registrada, en declarativo desde `versions.json`. `--dry-run` enseña el plan sin tocar nada. |
 | `i18n-check.sh` | Comprueba que `doc/es` y `doc/en` están sincronizados y que existe glosario. No juzga calidad de traducción, atrapa deriva de estructura y terminología. |
-| `models.py` | Propone modelo y esfuerzo por subagente, mezclando lo guardado en `.sdd.json` con lo recomendado, con override por fase. `--save` registra la respuesta del usuario validando tier y esfuerzo; `--clear` borra un default guardado. |
+| `models.py` | Propone modelo y esfuerzo por subagente, mezclando lo guardado en `.sdd/sdd.json` con lo recomendado, con override por fase. `--save` registra la respuesta del usuario validando tier y esfuerzo; `--clear` borra un default guardado. |
 
 Cada uno está probado en ambos sentidos: fallan con el detalle del problema y pasan cuando todo
 está en orden.
 
 ### Modelos guardados por proyecto
 
-La elección del usuario vive en `.sdd.json`, en `models`:
+La elección del usuario vive en `.sdd/sdd.json`, en `models`:
 
 ```json
 "models": {
@@ -255,8 +255,8 @@ quitarlas está `--clear`.
 
 ### Versionado del SDD
 
-`.sdd.json` en la raíz del proyecto registra qué versión del SDD lo tocó, qué layout declaró y
-qué harnesses eligió. `versions.json` en el agente dice cuál entiende él.
+`.sdd/sdd.json` registra qué versión del SDD tocó el proyecto, qué layout declaró y qué harnesses
+eligió. Va bajo `.sdd/`, que el init añade al `.gitignore`. `versions.json` en el agente dice cuál entiende él.
 
 Lo útil de que cada versión declare su layout es que `sdd_check.py` detecta el caso que un
 número solo no ve: alguien renombra `changes/` a `work/` sin subir la versión, las claves siguen

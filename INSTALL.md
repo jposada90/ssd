@@ -46,14 +46,60 @@ cada repo, y crea allí:
 ```
 <proyecto>/
 ├── AGENTS.md
-├── .sdd.json                 # versión del SDD, layout, harnesses elegidos, modelos
-├── changes/  doc/es  doc/en  doc/glossary.md  roadmap/  scripts/
-└── CLAUDE.md, GEMINI.md...   # solo los entry points de los harnesses que elijas
+├── changes/  doc/es  doc/en  doc/glossary.md  roadmap/
+├── CLAUDE.md, GEMINI.md...   # solo los entry points de los harnesses que elijas
+└── .sdd/                     # ignorado por git, del Conductor
+    ├── sdd.json              # versión del SDD, layout, harnesses elegidos, modelos
+    └── scripts/              # preflight, git-check, i18n-check, sdd_check,
+                              # migrate_sdd, models, check_roadmap, init-sdd
 ```
 
-`.sdd.json` es oculto a propósito: es configuración de la suite, no documentación del proyecto,
-y así no se confunde con `AGENTS.md` ni aparece en un `ls` de un vistazo. Va versionado con el
-repo, porque registra decisiones que el equipo debe compartir.
+`.sdd/` es local de la máquina y va bajo `.gitignore` desde el primer `init`, porque lleva rutas
+absolutas y las elecciones de modelo de una persona, que no son del equipo. Lo que el equipo
+comparte se queda versionado: `AGENTS.md` y `roadmap/`.
+
+### Que los agentes no toquen `.sdd/`
+
+Cada agente de fase lleva la regla en su prompt, pero el prompt no es una frontera. Lo que sí
+funciona depende del harness:
+
+**OpenCode**, en las variantes generadas, ya viene con `Edit` denegado sobre `.sdd/**` y con dos
+reglas de shell para `rm -rf .sdd*` y `mv .sdd*`. Es la única de las tres donde el bloqueo es
+nativo y por agente.
+
+**Claude Code** no permite un deny por ruta dentro del `frontmatter` de un subagente: un
+especificador en `tools` quita la herramienta entera. El sitio donde sí funciona es
+`settings.json`, y es **de sesión**, así que bloquearía también al Conductor. Se resuelve
+haciendo que **los scripts sean el único escritor** de `.sdd/`, que es como funciona ya: el
+Conductor escribe con `init-sdd.sh` y `models.py --save`, nunca con su herramienta de edición.
+
+Si quieres el bloqueo en Claude Code, añádelo a `.claude/settings.json` del proyecto:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Edit(/.sdd/**)",
+      "Bash(rm -rf .sdd*)",
+      "Bash(mv .sdd*)"
+    ]
+  }
+}
+```
+
+Tres límites que conviene saber antes de contar con esto:
+
+- Cubre las herramientas de fichero nativas y los comandos de fichero que Claude Code reconoce en
+  Bash (`cat`, `sed`, `tee`, redirecciones). **No** cubre un subproceso arbitrario que abra el
+  fichero por su cuenta, ni `python3`, ni `node`. Para eso está el sandbox.
+- `Edit` denegado también bloquea `Write` y `NotebookEdit` en esa ruta, pero no `Read`. Lo
+  dejamos así a propósito: poder leer `.sdd/` para diagnosticar es útil, poder escribirlo no.
+- No distingue Conductor de subagente, porque la regla no sabe quién está calling.
+
+**Pi** no expone deny por ruta documentado; ahí la regla es solo del prompt.
+
+**En los tres casos**, `sdd_check.py` detecta la manipulación: compara `.sdd/scripts/` con el
+suite instalado y avisa si algo difiere, falta o sobra. Eso ya no es prevención, es detección.
 
 Los ficheros de agente van **planos** a propósito: en OpenCode, un anidamiento se convierte en
 parte del id (`agents/team/x.md` → `team/x`), y eso rompería las referencias entre agentes.
@@ -159,9 +205,9 @@ proyecto, que van en el bloque `Verification` de `AGENTS.md`.
 Si prefieres hacerlo a mano:
 
 ```bash
-bash scripts/init-sdd.sh                    # pregunta los harnesses, si hay terminal
-bash scripts/init-sdd.sh --for claude      # o decides tú
-bash scripts/init-sdd.sh --for none        # solo AGENTS.md, sin links
+bash .sdd/scripts/init-sdd.sh                    # pregunta los harnesses, si hay terminal
+bash .sdd/scripts/init-sdd.sh --for claude      # o decides tú
+bash .sdd/scripts/init-sdd.sh --for none        # solo AGENTS.md, sin links
 ```
 
 ## Problemas frecuentes
@@ -176,25 +222,25 @@ Claude Code se niega a lanzarlo. Los ficheros de `dist/claude/` llevan los nombr
 **OpenCode no encuentra el Conductor.** Comprueba que el fichero está plano en
 `~/.config/opencode/agents/`, no en un subdirectorio, y recarga OpenCode.
 
-**`SDD VERSION MISMATCH` en la primera sesión.** El proyecto ya existe y su `.sdd.json` no lo
+**`SDD VERSION MISMATCH` en la primera sesión.** El proyecto ya existe y su `.sdd/sdd.json` no lo
 tocó esta versión del agente. El script dice si hay migración registrada y qué claves esperan
 otros valores. Para ver el plan sin tocar nada:
 
 ```bash
-python3 scripts/migrate_sdd.py <ruta al agente conductor> --dry-run
+python3 .sdd/scripts/migrate_sdd.py <ruta al agente conductor> --dry-run
 ```
 
 Y para aplicarla, solo cuando el usuario lo diga. El Conductor nunca migra por su cuenta.
 
-**Falta `CLAUDE.md` u otro entry point y el check falla.** `.sdd.json` los registra como
+**Falta `CLAUDE.md` u otro entry point y el check falla.** `.sdd/sdd.json` los registra como
 elegidos, así que o faltan en disco o son symlinks rotos. Si el proyecto ya no usa ese harness,
-bórralo de la lista `links` en `.sdd.json` en vez de crear el fichero. Para añadirlos después:
+bórralo de la lista `links` en `.sdd/sdd.json` en vez de crear el fichero. Para añadirlos después:
 
 ```bash
-bash scripts/init-sdd.sh --for claude,copilot
+bash .sdd/scripts/init-sdd.sh --for claude,copilot
 ```
 
-**El check dice que los harnesses "no están decididos".** `.sdd.json` tiene `links` a `null`,
+**El check dice que los harnesses "no están decididos".** `.sdd/sdd.json` tiene `links` a `null`,
 que es distinto de una lista vacía: la lista vacía es "no quiero ninguno", y `null` es "nadie lo
 ha decidido". Pásale `--for` con los nombres.
 

@@ -38,9 +38,84 @@ def apply_op(op, log):
         log(f"renamed {src} -> {dst}")
         return True
 
+    if kind == "mkdir":
+        path = pathlib.Path(op["path"])
+        if path.is_dir():
+            log(f"skip: {path} already exists")
+            return True
+        if DRY:
+            log(f"would create {path}/")
+            return True
+        path.mkdir(parents=True, exist_ok=True)
+        log(f"created {path}/")
+        return True
+
+    if kind == "move":
+        src, dst = pathlib.Path(op["from"]), pathlib.Path(op["to"])
+        if not src.exists():
+            log(f"skip: {src} does not exist")
+            return True
+        if dst.exists():
+            log(f"fail: {dst} already exists, {src} left alone")
+            return False
+        if DRY:
+            log(f"would move {src} -> {dst}")
+            return True
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        src.rename(dst)
+        log(f"moved {src} -> {dst}")
+        return True
+
+    if kind == "moveDir":
+        src, dst = pathlib.Path(op["from"]), pathlib.Path(op["to"])
+        if not src.is_dir():
+            log(f"skip: {src} does not exist")
+            return True
+        if DRY:
+            log(f"would move {src}/ -> {dst}/")
+            return True
+        dst.mkdir(parents=True, exist_ok=True)
+        for item in sorted(src.iterdir()):
+            target = dst / item.name
+            if target.exists():
+                log(f"  keep {target} (already there)")
+                continue
+            item.rename(target)
+        try:
+            src.rmdir()
+            log(f"moved {src}/ -> {dst}/ and removed the empty {src}/")
+        except OSError:
+            log(f"moved contents of {src}/ into {dst}/; {src}/ left because it is not empty")
+        return True
+
+    if kind == "gitignore":
+        path = pathlib.Path(op.get("file", ".gitignore"))
+        entries = op["entries"]
+        missing = []
+        existing = path.read_text().splitlines() if path.exists() else []
+        for entry in entries:
+            if entry in existing:
+                continue
+            missing.append(entry)
+        if not missing:
+            log(f"skip: {path} already ignores {', '.join(entries)}")
+            return True
+        if DRY:
+            log(f"would add to {path}: {', '.join(missing)}")
+            return True
+        block = "\n# Local SDD state: suite config and scripts. Never commit.\n"
+        with path.open("a") as fh:
+            if path.exists() and existing and not existing[-1].strip():
+                fh.write(block.lstrip("\n"))
+            else:
+                fh.write(block)
+            fh.write("\n".join(missing) + "\n")
+        log(f"added to {path}: {', '.join(missing)}")
+        return True
+
     if kind == "setLayout":
         # The recorded layout is a copy of the version's, so it moves with it.
-        path = pathlib.Path(".sdd.json")
+        path = pathlib.Path(".sdd/sdd.json")
         if DRY:
             log(f"would refresh the layout block in {path}")
             return True
@@ -57,7 +132,7 @@ def apply_op(op, log):
         # Fill links from what is actually on disk: a project that predates the
         # per-harness choice already has its entry points, and recording an empty
         # list would make the check report "none by choice" while they exist.
-        path = pathlib.Path(".sdd.json")
+        path = pathlib.Path(".sdd/sdd.json")
         if DRY:
             log(f"would record in {path} the entry points found on disk")
             return True
@@ -76,7 +151,7 @@ def apply_op(op, log):
         return True
 
     if kind == "requireKey":
-        path = pathlib.Path(".sdd.json")
+        path = pathlib.Path(".sdd/sdd.json")
         if DRY:
             # A previous rename may not have run yet, so the filesystem is not
             # evidence here. Report the intent rather than failing the dry run.
@@ -124,13 +199,14 @@ def main():
         target = args[args.index("--to") + 1]
     target = target or versions["current"]
 
-    config_path = pathlib.Path(".sdd.json")
+    config_path = pathlib.Path(".sdd/sdd.json")
     if not config_path.exists():
-        if pathlib.Path("sdd.json").exists():
-            print("this project still uses the pre-1.1 sdd.json; the first migration renames it")
-            from_version = "1.0"
+        if pathlib.Path(".sdd.json").exists() or pathlib.Path("sdd.json").exists():
+            legacy = ".sdd.json" if pathlib.Path(".sdd.json").exists() else "sdd.json"
+            print(f"this project still uses {legacy}; the first migration moves it")
+            from_version = "1.0" if legacy == "sdd.json" else "1.1"
         else:
-            print("no .sdd.json and no sdd.json: project not initialized for SDD")
+            print("no .sdd/sdd.json, .sdd.json or sdd.json: project not initialized for SDD")
             print("run the Conductor's boot step instead")
             return 1
     else:
@@ -174,27 +250,42 @@ def main():
         return 1
 
     log_lines = []
+    failed = []
     for version, spec, steps in pending:
         print(f"== {from_version} -> {version}: {spec['summary']}")
         for op in steps:
             op = dict(op)
             op.setdefault("options", spec.get("linkOptions", {}))
             op.setdefault("layout", spec.get("layout", {}))
-            apply_op(op, lambda m: log_lines.append(m) or print(f"  {m}"))
+            ok = apply_op(op, lambda m: log_lines.append(m) or print(f"  {m}"))
+            if not ok:
+                failed.append(f"{version}: {op.get('op')} {op.get('from') or op.get('path') or ''}".strip())
         print()
+
+    if failed:
+        print("MIGRATION INCOMPLETE: these steps did not apply")
+        for f in failed:
+            print(f"  {f}")
+        print()
+        print("the version was not bumped. Resolve the above and re-run.")
+        return 1
 
     if not config_path.exists() and not DRY:
         pass
 
-    # Bump the recorded version to what we actually applied.
+    if not config_path.exists() and not DRY:
+        pass
+
+    # Bump the recorded version only once every step applied, so a half-migrated
+    # project still reports the version whose layout it actually has.
     if config_path.exists():
         if DRY:
-            print(f"would set .sdd.json sddVersion to {target}")
+            print(f"would set .sdd/sdd.json sddVersion to {target}")
         else:
             doc = json.loads(config_path.read_text())
             doc["sddVersion"] = target
             config_path.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
-            print(f"set .sdd.json sddVersion to {target}")
+            print(f"set .sdd/sdd.json sddVersion to {target}")
 
     print()
     if DRY:

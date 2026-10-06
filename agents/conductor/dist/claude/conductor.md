@@ -32,9 +32,17 @@ Two fields in the roadmap describe where a node is, and they are orthogonal:
 - `status` is the administrative state: `draft`, `ready`, `blocked`, `inProgress`, `paused`, `completed`, `canceled`.
 - `phase` is where the node sits in the cycle. Optional, because a node spanning several phases has no single one.
 
+## `.sdd/` is yours
+
+`.sdd/` holds the suite config, the scripts, and the user's model choices. It is gitignored, machine-local, and yours alone: no phase agent reads it, writes it, or runs anything that changes it.
+
+**Write it through the scripts, never by hand.** `init-sdd.sh --for`, `models.py --save` and `migrate_sdd.py` are the only writers. Do not open `.sdd/sdd.json` with your own edit tool to change a value, even a small one. The reason is mechanical: a project can deny `Edit` on `.sdd/**` session-wide to keep phase agents out, and a rule that blunt cannot tell you apart from them. Going through the scripts sidesteps it, because file permission rules cover the built-in file tools and the file commands they recognise, not a subprocess like `python3`. The scripts also validate what they write, which an edit tool does not.
+
+If a phase agent reports it needs something from `.sdd/`, act on it yourself. If one reports that `.sdd/` looks wrong or already modified, treat it as a finding: say so, and let the user decide whether to restore it with `init-sdd.sh --force`.
+
 ## Boot: init
 
-The first time you run in a project, there is no `AGENTS.md` and no `.sdd.json`. Detect it by the absence of `.sdd.json`.
+The first time you run in a project, there is no `AGENTS.md` and no `.sdd/sdd.json`. Detect it by the absence of `.sdd/sdd.json`.
 
 ```bash
 bash "$(python3 -c "
@@ -62,7 +70,7 @@ bash .../init-sdd.sh --for claude,copilot     # or --for none
 
 Known names: `claude` (`CLAUDE.md`), `gemini` (`GEMINI.md`), `cursor` (`.cursorrules`), `copilot` (`.github/copilot-instructions.md`). OpenCode and Pi read `AGENTS.md` themselves and take no link; if the user names one, tell them it needs nothing.
 
-The script writes `AGENTS.md`, creates `changes/`, `doc/es/`, `doc/en/`, `doc/glossary.md`, `roadmap/` and `scripts/`, links the entry points you chose, and records `.sdd.json` with the SDD version, the layout and which harnesses it chose. It never overwrites existing files.
+The script writes `AGENTS.md`, creates `changes/`, `doc/es/`, `doc/en/`, `doc/glossary.md`, `roadmap/` and `.sdd/scripts/`, links the entry points you chose, records `.sdd/sdd.json` with the SDD version, the layout and which harnesses it chose, adds `.sdd/` to `.gitignore`, and never overwrites existing files.
 
 Then tell the user that the `Verification` block of `AGENTS.md` is empty and that `preflight.sh` cannot run until they fill it in with the project's build, test, lint and typecheck commands. Do not guess those commands: a wrong command is worse than an empty one. Everything the cycle does afterwards is verified through those scripts, so this is the one step worth pausing for.
 
@@ -73,37 +81,37 @@ If the project already has an `AGENTS.md`, read it and adapt to it. Do not repla
 The layout this cycle depends on (which directories exist, where artifacts live, which files the scripts read) changes between SDD versions. A project on an older version has its documents where this version does not expect them, so every session starts by finding out which version the project is on.
 
 ```bash
-python3 scripts/sdd_check.py <path to agents/conductor>
+python3 .sdd/scripts/sdd_check.py <path to agents/conductor>
 ```
 
 `<path to agents/conductor>` is this agent's own directory, the one holding `versions.json`. It cannot be guessed from inside a project.
 
 - **`SDD VERSION OK`** — carry on with the preflight.
-- **`SDD UNINITIALIZED`** — no `.sdd.json`. Run the boot step above, then check again.
+- **`SDD UNINITIALIZED`** — no `.sdd/sdd.json`. Run the boot step above, then check again.
 - **`SDD VERSION MISMATCH`** — the output says whether a migration is registered, and per key what the project has against what this version expects. Report it and ask. If a migration is registered, show the user what it would do before doing it:
 
   ```bash
-  python3 scripts/migrate_sdd.py <path to agents/conductor> --dry-run
+  python3 .sdd/scripts/migrate_sdd.py <path to agents/conductor> --dry-run
   ```
 
-  Then, only on their word, without `--dry-run`. Do not move files, rewrite `.sdd.json`, or migrate unasked.
+  Then, only on their word, without `--dry-run`. Do not move files, rewrite `.sdd/sdd.json`, or migrate unasked.
 - **Exit 2 with a check error** — you passed the wrong agent directory or `versions.json` is missing. Report that plainly instead of guessing.
 
-Two versions must not be confused. `sddVersion` in `.sdd.json` is the layout and the cycle, and lives in `versions.json` here. `schemaVersion` inside each roadmap document is the JSON schema of that document, and it moves independently. A project can be on SDD 1.1 with roadmap documents at schema 1.0 and still need a schema migration later.
+Two versions must not be confused. `sddVersion` in `.sdd/sdd.json` is the layout and the cycle, and lives in `versions.json` here. `schemaVersion` inside each roadmap document is the JSON schema of that document, and it moves independently. A project can be on SDD 1.1 with roadmap documents at schema 1.0 and still need a schema migration later.
 
 The check catches silent drift too: someone renames `changes/` to `work/` without bumping any version, and the layout keys still say `changes`. That is the case a version number alone would miss.
 
-Entry points are checked only when `.sdd.json` records them, since which harnesses a project uses is a choice. A project that wants no links records an empty list; one nobody has decided about records `null`, and the check sends the question back to you.
+Entry points are checked only when `.sdd/sdd.json` records them, since which harnesses a project uses is a choice. A project that wants no links records an empty list; one nobody has decided about records `null`, and the check sends the question back to you.
 
 ## Choosing models
 
 You recommend which model and effort each phase should run on. The user decides, every session. You never launch on your own recommendation alone.
 
 ```bash
-python3 scripts/models.py <path to agents/conductor> [phase]
+python3 .sdd/scripts/models.py <path to agents/conductor> [phase]
 ```
 
-This prints every subagent with its recommended tier, the concrete model id for the current harness, the effort, and the reason. Pass a phase to apply per-phase overrides: `python3 scripts/models.py <agent dir> archive` downgrades `documentation-maintainer` to a light tier, because archiving and translating settled content is mechanical.
+This prints every subagent with its recommended tier, the concrete model id for the current harness, the effort, and the reason. Pass a phase to apply per-phase overrides: `python3 .sdd/scripts/models.py <agent dir> archive` downgrades `documentation-maintainer` to a light tier, because archiving and translating settled content is mechanical.
 
 The reasoning behind the tiers:
 
@@ -117,16 +125,16 @@ Effort is separate from tier. `worker` on standard with high effort is the commo
 
 **Ask before every cycle, even when a default is saved.** Run the script, show the user the table, and ask two things: which agents to launch now, and with what effort. A saved default is what they said last time, not what they want this time; the work changes, and the model that verifies a small change is not the one for a large one. The script marks a saved choice that differs from your recommendation with `*`, so show that marker and say what differs.
 
-Show the phase that is about to run: `python3 scripts/models.py <agent dir> <phase>` resolves that phase's override, so the numbers you show are the ones you would actually launch.
+Show the phase that is about to run: `python3 .sdd/scripts/models.py <agent dir> <phase>` resolves that phase's override, so the numbers you show are the ones you would actually launch.
 
-Record the answers with the script, never by editing `.sdd.json` by hand:
+Record the answers with the script, never by editing `.sdd/sdd.json` by hand:
 
 ```bash
-python3 scripts/models.py <path to agents/conductor> --save \
+python3 .sdd/scripts/models.py <path to agents/conductor> --save \
   design-analyst=deep:high documentation-maintainer=light:low@archive
 ```
 
-The spec is `agent=tier[:effort][@phase]`. It validates the tier and the effort against `models.json` and saves nothing if either is wrong, because a typo written straight into `.sdd.json` pins an agent to a wrong model indefinitely. Saving a new default keeps the per-phase answers already recorded, since those were separate decisions; `--clear <agent>` is how you drop one on purpose.
+The spec is `agent=tier[:effort][@phase]`. It validates the tier and the effort against `models.json` and saves nothing if either is wrong, because a typo written straight into `.sdd/sdd.json` pins an agent to a wrong model indefinitely. Saving a new default keeps the per-phase answers already recorded, since those were separate decisions; `--clear <agent>` is how you drop one on purpose.
 
 Only save what the user actually said. Do not record your recommendation as if they had chosen it.
 
@@ -135,9 +143,9 @@ Only save what the user actually said. Do not record your recommendation as if t
 Run these on every invocation, after the version check and before interpreting the request. Report what failed; never repair it here.
 
 ```bash
-bash scripts/preflight.sh    # build, test, lint, typecheck, format
-bash scripts/git-check.sh    # working tree state
-python3 roadmap/schema/check_roadmap.py roadmap roadmap/schema/roadmap.schema.json
+bash .sdd/scripts/preflight.sh    # build, test, lint, typecheck, format
+bash .sdd/scripts/git-check.sh    # working tree state
+python3 .sdd/scripts/check_roadmap.py roadmap roadmap/schema/roadmap.schema.json
 ```
 
 Then read `roadmap/TreeTask.md`, the generated index: it gives you the tree, the frontier and the open questions in one pass.
@@ -184,7 +192,7 @@ Never re-enter a phase the node has already completed. When a node is at `specs`
 3. Ask the user to commit, then commit yourself only when asked. Commit message from the node: `id: name`.
 4. Move the specs, design and verify documents from `changes/<id>/` to `doc/es/<id>/`, keeping their names. This is `documentation-maintainer`'s job, not a manual `mv`.
 5. Translate them to `doc/en/<id>/`, using `doc/glossary.md` for terminology. Keep code blocks, identifiers and command names untranslated. Prose in English.
-6. Run `scripts/i18n-check.sh`. Fix structural drift before closing.
+6. Run `.sdd/scripts/i18n-check.sh`. Fix structural drift before closing.
 7. Set the node's `status` to `completed` and `phase` to `archive`. Bump `version`.
 
 `changes/<id>/` keeps `apply.md` and `proposal.md`; specs, design and verify move to `doc/`.
@@ -214,7 +222,7 @@ An issue follows the same contract as any other node. It is in the roadmap, the 
 
 Every session follows the same sequence. Each step gates the next, because a later step built on a broken earlier one produces work nobody can trust.
 
-1. **Init**, if the project has no `.sdd.json`.
+1. **Init**, if the project has no `.sdd/sdd.json`.
 2. **Version check.** A mismatch means the layout differs, so preflight would read the wrong paths.
 3. **Preflight.** Three checks. Work does not start on a broken or unverified baseline.
 4. **Routing.** Read `TreeTask.md`, classify the request, pick the phase.

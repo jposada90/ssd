@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
 # SDD init: create the project scaffold the Conductor needs.
-#   AGENTS.md      the durable project contract (written once, edited by hand)
-#   .sdd.json      which SDD version last touched this project, its layout, and
-#                  which harnesses' entry points it chose
-#   roadmap/       the task tree, with its schema and checker
-#   changes/       per-task working documents, archived into doc/ when done
-#   doc/es, doc/en archived documents and their translations
-#   doc/glossary.md terminology, so translations and code use the same words
-#   symlinks       entry points for the harnesses you pick, pointing at AGENTS.md
+#
+# Versioned, because the team shares them:
+#   AGENTS.md        the durable project contract (written once, edited by hand)
+#   roadmap/         the task tree, plus the schema that defines its documents
+#   changes/         per-task working documents, archived into doc/ when done
+#   doc/es, doc/en   archived documents and their translations
+#   doc/glossary.md  terminology, so translations and code use the same words
+#   entry points     CLAUDE.md etc. for the harnesses you pick, pointing at AGENTS.md
+#
+# Local to the machine, under .sdd/ and gitignored:
+#   .sdd/sdd.json    which SDD version last touched this project, its layout,
+#                    which harnesses it chose, and the user's model choices
+#   .sdd/scripts/    the scripts the agents run
+#
+# Nothing outside .sdd/ and the scaffold above is written. Phase agents never
+# touch .sdd/: it is the Conductor's own state, and a subagent editing its own
+# controls is how a cycle quietly stops being checked.
 #
 # Usage:
-#   init-sdd.sh                     asks which harnesses, if on a terminal
-#   init-sdd.sh --for claude,copilot   skips the question
-#   init-sdd.sh --force            overwrite files that already exist
+#   init-sdd.sh                       asks which harnesses, if on a terminal
+#   init-sdd.sh --for claude,copilot  skips the question
+#   init-sdd.sh --force               overwrite files that already exist
 #
 # Idempotent: existing files are never overwritten.
 set -uo pipefail
@@ -24,9 +33,10 @@ AGENT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FOR=""
 
 # The roadmap schema travels with the suite, so this normally needs no argument.
-# Override ROADMAP_SRC when running straight from a checkout that has it elsewhere.
+# A copy living in .sdd/scripts has no suite to look at, but the project itself has
+# the schema under roadmap/schema/, which is the right place to read it from.
 if [ -z "${ROADMAP_SRC:-}" ]; then
-  for candidate in "$AGENT_DIR/../task-decomposer/schema" "$AGENT_DIR/schema"; do
+  for candidate in "$AGENT_DIR/../task-decomposer/schema" "roadmap/schema" "$AGENT_DIR/schema"; do
     if [ -f "$candidate/roadmap.schema.json" ]; then
       ROADMAP_SRC="$(cd "$candidate" && pwd)"
       break
@@ -40,7 +50,7 @@ while [ $# -gt 0 ]; do
     --force) FORCE=1 ;;
     --for) shift; [ $# -gt 0 ] && FOR="${1//,/ }" || { echo "error: --for needs a value" >&2; exit 2; } ;;
     --for=*) FOR="${1#--for=}"; FOR="${FOR//,/ }" ;;
-    -h|--help) sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '3,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -65,7 +75,7 @@ Describe what this project is, in two or three sentences.
 
 ## Verification
 
-Declare the commands that prove the project works. `scripts/preflight.sh` reads
+Declare the commands that prove the project works. `.sdd/scripts/preflight.sh` reads
 these lines and runs them; leave a command blank to skip that check.
 
 ```
@@ -87,12 +97,16 @@ short: what is non-obvious, and what the environment cannot tell you.
 - Do not commit unless asked. The Conductor owns git and the SDD cycle.
 - Working documents live in `changes/<task-id>/`; archived ones in `doc/es/`.
 - Terms in `doc/glossary.md` are the project's vocabulary. Use them.
+- `.sdd/` is the Conductor's own state and is gitignored. Never read it, write it,
+  or run anything that edits it: the Conductor owns it, and a subagent changing its
+  own controls is how a cycle quietly stops being checked.
 
 ## SDD
 
 The project follows a Spec-Driven Development cycle: proposal, specs, design,
-task, apply, verify, archive. `scripts/preflight.sh`, `scripts/git-check.sh` and
-`scripts/i18n-check.sh` verify the repo state before any of it starts.
+task, apply, verify, archive. `.sdd/scripts/preflight.sh`,
+`.sdd/scripts/git-check.sh` and `.sdd/scripts/i18n-check.sh` verify the repo state
+before any of it starts.
 EOF
     created+=("AGENTS.md")
   fi
@@ -119,12 +133,6 @@ if [ -n "$ROADMAP_SRC" ] && [ -f "$ROADMAP_SRC/roadmap.schema.json" ] && [ ! -f 
   mkdir -p roadmap/schema
   cp "$ROADMAP_SRC/roadmap.schema.json" roadmap/schema/
   created+=("roadmap/schema/roadmap.schema.json")
-fi
-
-if [ -n "$ROADMAP_SRC" ] && [ -f "$ROADMAP_SRC/check_roadmap.py" ] && [ ! -f roadmap/schema/check_roadmap.py ]; then
-  cp "$ROADMAP_SRC/check_roadmap.py" roadmap/schema/
-  chmod +x roadmap/schema/check_roadmap.py 2>/dev/null
-  created+=("roadmap/schema/check_roadmap.py")
 fi
 
 if [ ! -f roadmap/main.json ]; then
@@ -244,7 +252,7 @@ elif [ -t 0 ]; then
 else
   echo
   echo "note: not a terminal, so no harness was chosen."
-  echo "      .sdd.json records links as undecided until you say which, e.g."
+  echo "      .sdd/sdd.json records links as undecided until you say which, e.g."
   echo "      init-sdd.sh --for claude,copilot    (or --for none)"
 fi
 
@@ -279,21 +287,46 @@ if [ -n "$wanted" ]; then
   done <<< "$chosen_links"
 fi
 
-# The preflight scripts live in the project, so the cycle is verifiable without
-# this repository present.
-mkdir -p scripts
-for s in preflight.sh git-check.sh i18n-check.sh sdd_check.py migrate_sdd.py models.py; do
-  if [ -f "$AGENT_DIR/scripts/$s" ] && [ ! -f "scripts/$s" ]; then
-    cp "$AGENT_DIR/scripts/$s" scripts/
-    chmod +x "scripts/$s" 2>/dev/null
-    created+=("scripts/$s")
+# --- .sdd/: local state and scripts, gitignored -------------------------------
+SDD_DIR=".sdd"
+SDD_SCRIPTS="$SDD_DIR/scripts"
+
+mkdir -p "$SDD_SCRIPTS"
+created+=("$SDD_DIR/" "$SDD_SCRIPTS/")
+
+# The scripts live in the project so the cycle is verifiable without this repo, and
+# under .sdd/ so they are machine-local rather than something the team inherits.
+for s in init-sdd.sh preflight.sh git-check.sh i18n-check.sh sdd_check.py migrate_sdd.py models.py; do
+  if [ -f "$AGENT_DIR/scripts/$s" ] && [ ! -f "$SDD_SCRIPTS/$s" ]; then
+    cp "$AGENT_DIR/scripts/$s" "$SDD_SCRIPTS/$s"
+    chmod +x "$SDD_SCRIPTS/$s" 2>/dev/null
+    created+=("$SDD_SCRIPTS/$s")
   fi
 done
 
-# .sdd.json records which SDD version last touched this project, the layout it
-# declared, and which entry points it chose. sdd_check.py compares all three
-# against the agent's versions.json.
-if [ ! -f .sdd.json ] || [ "$FORCE" = 1 ]; then
+# check_roadmap.py is the schema's companion, so it travels from the same place,
+# but it is tooling: it writes TreeTask.md, so it belongs with the scripts.
+if [ -n "$ROADMAP_SRC" ] && [ -f "$ROADMAP_SRC/check_roadmap.py" ] && [ ! -f "$SDD_SCRIPTS/check_roadmap.py" ]; then
+  cp "$ROADMAP_SRC/check_roadmap.py" "$SDD_SCRIPTS/"
+  chmod +x "$SDD_SCRIPTS/check_roadmap.py" 2>/dev/null
+  created+=("$SDD_SCRIPTS/check_roadmap.py")
+fi
+
+# .sdd/ must never be committed. Adding it here means nobody can forget and then
+# leak local model choices and absolute paths into the team's history.
+if [ -f .gitignore ]; then
+  if ! grep -qxF '.sdd/' .gitignore 2>/dev/null; then
+    printf '\n# Local SDD state: suite config and scripts. Never commit.\n.sdd/\n' >> .gitignore
+    created+=(".gitignore (.sdd/)")
+  fi
+else
+  printf '.sdd/\n' > .gitignore
+  created+=(".gitignore (.sdd/)")
+fi
+
+# .sdd/sdd.json records which SDD version last touched this project, the layout it
+# declared, which entry points it chose, and the user's model choices.
+if [ ! -f "$SDD_DIR/sdd.json" ] || [ "$FORCE" = 1 ]; then
   python3 - "$AGENT_DIR/versions.json" "$AGENT_VERSION" "$(date -u +%Y-%m-%d)" "$chosen_links" "$links_decided" <<'PY'
 import json, sys
 versions_path, version, today, chosen, decided = sys.argv[1:6]
@@ -311,11 +344,11 @@ doc = {
     "links": links,
     "models": {},
 }
-with open(".sdd.json", "w") as fh:
+with open(".sdd/sdd.json", "w") as fh:
     json.dump(doc, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PY
-  created+=(".sdd.json")
+  created+=("$SDD_DIR/sdd.json")
 fi
 
 if [ ${#created[@]} -gt 0 ]; then

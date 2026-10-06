@@ -15,7 +15,7 @@ A spec is  agent=tier[:effort][@phase]
   documentation-maintainer=light:low@archive
 
 Saving is validated against models.json: an unknown tier or effort is rejected, because
-a typo stored in .sdd.json would silently pin an agent to a wrong model forever.
+a typo stored in .sdd/sdd.json would silently pin an agent to a wrong model forever.
 
 --save replaces the default for an agent but keeps its per-phase answers, since those
 were separate decisions. --clear is how you drop them.
@@ -28,7 +28,7 @@ import sys
 
 
 def load_saved():
-    for name in (".sdd.json", "sdd.json"):
+    for name in (".sdd/sdd.json", ".sdd.json", "sdd.json"):
         config = pathlib.Path(name)
         if config.exists():
             return json.loads(config.read_text()).get("models", {}) or {}
@@ -66,7 +66,7 @@ def show(agent_dir, models, phase):
 
     unknown = [a for a in saved if a not in models["recommendations"]]
     for a in unknown:
-        print(f"warning: .sdd.json saves settings for '{a}', which no agent recommendation matches")
+        print(f"warning: .sdd/sdd.json saves settings for '{a}', which no agent recommendation matches")
 
     for agent, rec in models["recommendations"].items():
         entry = saved.get(agent)
@@ -100,10 +100,9 @@ def save(models, specs, clear=False):
     if clear:
         return clear_saved(models, specs)
 
-    config_path = pathlib.Path(".sdd.json")
-    config_path = pathlib.Path(".sdd.json")
+    config_path = pathlib.Path(".sdd/sdd.json")
     if not config_path.exists():
-        print(f"no .sdd.json here; run the Conductor's boot step first", file=sys.stderr)
+        print("no .sdd/sdd.json here; run the Conductor's boot step first", file=sys.stderr)
         return 1
 
     config = json.loads(config_path.read_text())
@@ -171,9 +170,9 @@ def clear_saved(models, agents):
     """Drop a saved default so the recommendation applies again. Explicit, because
     saving a new default deliberately keeps phase overrides and would otherwise
     leave no way to undo them."""
-    config_path = pathlib.Path(".sdd.json")
+    config_path = pathlib.Path(".sdd/sdd.json")
     if not config_path.exists():
-        print("no .sdd.json here; run the Conductor's boot step first", file=sys.stderr)
+        print("no .sdd/sdd.json here; run the Conductor's boot step first", file=sys.stderr)
         return 1
 
     config = json.loads(config_path.read_text())
