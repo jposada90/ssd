@@ -41,6 +41,32 @@ STATUS_ICON = {
 }
 
 
+NODE_DOCS = {"specs.md", "tests.md", "traceability.md", "design.md", "verify.md"}
+
+
+def check_refs(root, nodes, problems):
+    """ref.design entries resolve in one of two ways: a bare name matching one of this
+    node's own documents, which survives archiving because it travels with the node; or a
+    path relative to the project root. A bare name that is neither is a reference that
+    nothing will ever resolve."""
+    for rel, doc in nodes.items():
+        entries = list(doc.get("ref", {}).get("design", []))
+        for child in doc.get("tasks", []):
+            entries.extend(child.get("ref", {}).get("design", []))
+        for entry in entries:
+            if "/" in entry:
+                target = entry.split("#", 1)[0]
+                if not (root / target).exists():
+                    problems.append(f"{rel}: ref.design points at a missing file: {target}")
+                continue
+            name = entry.split("#", 1)[0]
+            if name not in NODE_DOCS:
+                problems.append(
+                    f"{rel}: ref.design '{entry}' is neither one of this node's documents "
+                    f"({', '.join(sorted(NODE_DOCS))}) nor a path"
+                )
+
+
 def render_index(root, docs):
     """TreeTask.md: one line per node, deepest phase first, so the Conductor can
     read the project's state without opening every document."""
@@ -194,6 +220,8 @@ def main(roadmap_dir, schema_path, write_index=True):
     for parent, child_id, target in files:
         if not target.exists():
             failures.append(f"{child_id} declared file not found: {target.relative_to(root)}")
+
+    check_refs(root, nodes, failures)
 
     index = render_index(root, nodes)
     index_path = root / "TreeTask.md"

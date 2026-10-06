@@ -112,8 +112,8 @@ EOF
   fi
 fi
 
-mkdir -p changes doc/es doc/en roadmap/issues
-created+=("changes/" "doc/es/" "doc/en/" "roadmap/issues/")
+mkdir -p changes doc/es doc/en roadmap/issues changes/archive
+created+=("changes/" "changes/archive/" "doc/es/" "doc/en/" "roadmap/issues/")
 
 if [ ! -f doc/glossary.md ]; then
   cat > doc/glossary.md <<'EOF'

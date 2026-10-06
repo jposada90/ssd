@@ -124,7 +124,7 @@
         },
         "design": {
           "type": "array",
-          "description": "Design documents or anchored sections, e.g. design.md#order-status.",
+          "description": "A design document or an anchored section. A bare name that matches one of this node's own documents (specs.md, tests.md, traceability.md, design.md, verify.md) means that document of this node, and keeps resolving after archiving moves it. Anything else is a path relative to the project root, optionally with a #anchor, e.g. doc/es/F-01/design.md#order-status.",
           "items": { "type": "string", "minLength": 1 },
           "uniqueItems": true
         },

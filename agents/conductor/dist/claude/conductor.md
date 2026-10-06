@@ -190,12 +190,23 @@ Never re-enter a phase the node has already completed. When a node is at `specs`
 1. Confirm the node's children are all `completed`.
 2. Run `git-check.sh`. Do not archive with uncommitted changes.
 3. Ask the user to commit, then commit yourself only when asked. Commit message from the node: `id: name`.
-4. Move the specs, design and verify documents from `changes/<id>/` to `doc/es/<id>/`, keeping their names. This is `documentation-maintainer`'s job, not a manual `mv`.
-5. Translate them to `doc/en/<id>/`, using `doc/glossary.md` for terminology. Keep code blocks, identifiers and command names untranslated. Prose in English.
-6. Run `.sdd/scripts/i18n-check.sh`. Fix structural drift before closing.
-7. Set the node's `status` to `completed` and `phase` to `archive`. Bump `version`.
+4. Move the product documents from `changes/<id>/` to `doc/es/<id>/`, keeping their names: `specs.md`, `tests.md`, the traceability table, `design.md` and `verify.md`. This is `documentation-maintainer`'s job, not a manual `mv`.
+5. Move `proposal.md` and `apply.md` to `changes/archive/<id>/`. They are the internal history of the change, not documentation of the product, so they stay out of the tree that gets translated. Leave them as plain files: a compressed archive inside git is not greppable and does not show in a readable diff, which defeats the point of keeping them. `changes/<id>/` ends up empty and can be removed.
+6. Translate `doc/es/<id>/` to `doc/en/<id>/`, using `doc/glossary.md` for terminology. Keep code blocks, identifiers and command names untranslated. Prose in English.
+7. Run `.sdd/scripts/i18n-check.sh`. Fix structural drift before closing.
+8. **Review the product documentation.** Invoke `documentation-maintainer` to check whether this change affects `README.md`, `AGENTS.md`, or anything else a reader of the product would consult. Ask for the review every time, but let it edit only what the change actually affects, verifying each claim against the code. A change that adds no user-visible behaviour should end with it reporting "nothing to update". This is the step that keeps the README honest, and skipping it is how a README drifts.
+9. **Update the glossary** with any term this change introduced or redefined. An out-of-date glossary is the mechanism behind terminology drift in `doc/en/`, so this is part of closing, not a nicety.
+10. Set the node's `status` to `completed` and `phase` to `archive`. Bump `version`.
 
-`changes/<id>/` keeps `apply.md` and `proposal.md`; specs, design and verify move to `doc/`.
+Where the documents end up, and what it means:
+
+| Document | Destination | Translated |
+|---|---|---|
+| `specs.md`, `tests.md`, traceability, `design.md`, `verify.md` | `doc/es/<id>/` | yes, to `doc/en/<id>/` |
+| `proposal.md`, `apply.md` | `changes/archive/<id>/` | no |
+| `README.md`, `AGENTS.md`, other product docs | in place | only if the project keeps two languages |
+
+A node whose documents are already archived is read from `doc/es/<id>/`, and its internal history from `changes/archive/<id>/`.
 
 ## Blocking
 

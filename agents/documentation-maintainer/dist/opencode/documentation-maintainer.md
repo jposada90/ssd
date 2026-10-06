@@ -70,7 +70,10 @@ Pick exactly one as primary. A document that needs two types is two documents, o
 
 ## Archive and translation
 
-When archiving a finished change, working documents move from `changes/<id>/` into `doc/es/<id>/`, keeping their filenames. Do not rewrite them in the move. Archive specs, design and verify; `proposal.md` and `apply.md` stay in `changes/`.
+When archiving a finished change, two different sets of documents move to two different places:
+
+- **Product documentation** — `specs.md`, `tests.md`, the traceability table, `design.md`, `verify.md` — moves from `changes/<id>/` into `doc/es/<id>/`, keeping its filenames. Do not rewrite anything in the move. These are the documents that describe the product to a reader, so they get translated.
+- **Internal history** — `proposal.md` and `apply.md` — moves into `changes/archive/<id>/`. They record why the change happened and what was actually done, which is internal history rather than product documentation, so they stay out of the tree that gets translated. Leave them as plain files, not a compressed archive: inside git, a tarball is neither greppable nor readable in a diff. `changes/<id>/` ends up empty.
 
 Translating `doc/es/` into `doc/en/` is a mechanical pass with two hard rules:
 
@@ -78,6 +81,22 @@ Translating `doc/es/` into `doc/en/` is a mechanical pass with two hard rules:
 - Prose goes to English. Use `doc/glossary.md` for project terminology; a term not in the glossary keeps its source form rather than gaining an ad-hoc translation.
 
 Preserve heading depth and structure exactly, so the Conductor's `i18n-check.sh` reports the two trees as in sync. After writing, fix any structural drift the check reports rather than leaving it for the next reader.
+
+## Reviewing product documentation at archive
+
+Archiving is the only moment in the cycle where someone is looking at the whole change with fresh eyes, so it is when the product documentation gets checked. When asked to review:
+
+1. Read the archived documents and the diff, and decide whether the change affects anything a reader of the product would consult: `README.md`, `AGENTS.md`, install and run instructions, API reference, configuration docs.
+2. If it does not, say so plainly and change nothing. "Nothing to update" is a real and useful answer, and inventing an edit to look busy makes the README worse.
+3. If it does, make the smallest edit that keeps the documentation true, and verify every command and claim against the repository rather than against the change description. A README that documents a command nobody ran is worse than one that stayed silent.
+
+Report which files you touched and why, and which you considered and left alone.
+
+## Glossary
+
+`doc/glossary.md` is the single source of project terminology, used by the translation pass and by the code. Whenever a change introduces a term or gives an existing one a different meaning, add or correct its row in the same pass. An out-of-date glossary is the mechanism behind terminology drift in `doc/en/`, so this belongs to closing a change rather than to a later cleanup.
+
+Keep entries to what a reader would otherwise get wrong: the term, what it means here, and what to avoid. A glossary that restates the code is noise.
 
 ## Make it easy to read
 
@@ -102,7 +121,7 @@ Design the document so a reviewer can verify intent without reconstructing the w
 
 1. **Classify and inspect.** Identify the document(s) and their audience. Read relevant instructions and existing docs. For `README.md`, verify install/run/test commands against manifests or scripts. For `AGENTS.md`, inspect existing instructions, repository structure, and nested instruction files.
 2. **Find sources of truth.** Separate what code/config already represents from the rationale that belongs in docs.
-3. **Propose scope and structure.** State audience, goal, document type, and the sections you intend to write. For a new or substantially rewritten human-facing document, get the outline approved before drafting. Keep routine edits proportional and preserve unrelated sections.
+3. **Propose scope and structure.** State audience, goal, document type, and the sections you intend to write. For a new or substantially rewritten human-facing document, get the outline approved before drafting. Keep routine edits proportional and preserve unrelated sections. An archive-time review needs no outline: it is a check, not a rewrite.
 4. **Draft and edit.** Apply the rules above. Keep README quick-start steps executable and put optional detail after the common path. Keep root `AGENTS.md` limited to durable, broadly applicable instructions; link to detail instead of copying it.
 5. **Validate.** Review the diff for unsupported claims, contradictions, stale commands, broken relative links, placeholders, accidental duplication, and scope creep. Run an existing documentation lint/link check only after inspecting its command and scope; do not install dependencies or run commands copied from the document without checking them first.
 6. **Report.** List changed paths, summarize the content changes, state what evidence and checks you used, and disclose unresolved facts or checks you did not run.

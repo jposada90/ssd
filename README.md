@@ -28,10 +28,61 @@ node build.mjs --check          # ¿dist/ está al día con los prompt.md?
 | `task` | `task-decomposer` | JSON en `roadmap/`, más `TreeTask.md` | standard / medium |
 | `apply` | `worker` | `changes/<id>/apply.md` y el código | standard / high |
 | `verify` | `verifier` | `changes/<id>/verify.md` | deep / high |
-| `archive` | `conductor` + `documentation-maintainer` | `doc/es/`, `doc/en/`, commit | light / low |
+| `archive` | `conductor` + `documentation-maintainer` | `doc/es/`, `changes/archive/`, `doc/en/`, commit | light / low |
 
 `documentation-maintainer` además trabaja de forma transversal: no solo en el archivo, sino
 como agente de documentación del repositorio.
+
+---
+
+## Dónde vive cada cosa
+
+```
+<proyecto>/
+├── AGENTS.md              # el contrato del repo, versionado
+├── roadmap/               # el estado del proyecto, versionado
+│   ├── main.json
+│   ├── TreeTask.md        # índice generado; no se edita a mano
+│   ├── schema/            # el schema de los documentos del roadmap
+│   └── <ID>-<slug>/
+├── changes/               # trabajo en curso, versionado
+│   └── <id>/              #   proposal, specs, design, apply, verify
+├── changes/archive/       # historia interna de cambios ya archivados
+├── doc/es/<id>/           # documentación del producto, en español, versionada
+├── doc/en/<id>/           # su traducción
+├── doc/glossary.md        # terminología del proyecto
+└── .sdd/                  # configuración y scripts del Conductor, ignorado
+```
+
+## Qué hace el archivo
+
+Cuando un nodo se completa, el Conductor hace diez cosas, en este orden:
+
+1. Todos los hijos están `completed`.
+2. `git-check.sh`: sin cambios sin commitear.
+3. Commit, solo si lo pides.
+4. Los documentos de producto (`specs.md`, `tests.md`, la tabla de trazabilidad, `design.md`,
+   `verify.md`) pasan de `changes/<id>/` a `doc/es/<id>/`, con los mismos nombres.
+5. `proposal.md` y `apply.md` pasan a `changes/archive/<id>/`. Son historia interna del cambio,
+   no documentación del producto, así que quedan fuera del árbol que se traduce.
+6. Se traducen a `doc/en/<id>/` con el glosario. Código, identificadores y comandos no se traducen.
+7. `i18n-check.sh`: comprueba que los dos árboles están sincronizados.
+8. **Revisión de `README.md` y `AGENTS.md`.** Se pide siempre; se edita solo si el cambio afecta a
+   algo que consulta quien lee el producto. Un cambio sin comportamiento visible debe acabar con
+   "nada que actualizar". Este paso es el que mantiene honesto el README.
+9. **Glosario** al día con los términos que el cambio introduce o redefinirme.
+10. El nodo queda `completed` en fase `archive`, con su `version` bumpeada.
+
+Sin el paso 8, el README deriva: es lo primero que lee cualquiera que llega al repo, y el ciclo
+no lo mantenía. "Nada que actualizar" es una respuesta legítima y útil; inventar una edición para
+parecer ocupado hace el README peor.
+
+### `ref.design` y por qué no lleva rutas
+
+En el roadmap, `ref.design` acepta un nombre suelto como `design.md#order-status`, que significa
+"el documento de diseño de este mismo nodo". Sobrevive al archivo porque viaja con el nodo, cosa que
+una ruta absoluta no haría: `changes/<id>/design.md` deja de existir al pasar a `doc/es/<id>/`.
+Cualquier otra cosa es una ruta desde la raíz del proyecto. El checker valida las dos formas.
 
 ---
 
@@ -44,10 +95,10 @@ informes de verificación: enruta al agente de cada fase y responde del ciclo en
 
 En cada sesión, en este orden:
 
-1. **Init**, si el proyecto no tiene `.sdd/`. Crea `AGENTS.md`, `changes/`, `doc/es`,
-   `doc/en`, `doc/glossary.md`, `roadmap/` y `scripts/`. **Antes te pregunta para qué harnesses
-   es el repo**, y solo crea los entry points de esos: un `CLAUDE.md` caducado de un harness que
-   nadie abre es peor que no tener el fichero.
+1. **Init**, si el proyecto no tiene `.sdd/`. Crea `AGENTS.md`, `changes/` con su `changes/archive/`,
+   `doc/es`, `doc/en`, `doc/glossary.md`, `roadmap/` y `.sdd/scripts/`. **Antes te pregunta para qué
+   harnesses es el repo**, y solo crea los entry points de esos: un `CLAUDE.md` caducado de un
+   harness que nadie abre es peor que no tener el fichero.
 2. **Versión.** Compara la versión del SDD y su layout con lo que espera el agente. Detecta el
    cambio de versión y también el drift silencioso. Si hay migración registrada, te enseña el
    plan en `--dry-run` antes de preguntar.

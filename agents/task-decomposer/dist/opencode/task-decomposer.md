@@ -113,6 +113,12 @@ Inside `tasks[]`, only what the child needs:
 - `level`, `phase`, `version`, `description` or `whatToBuild`, `blockedBy`, `deliver`, `acceptanceCriteria`, `ref` as needed.
 - Never repeat `gitInfo`, `developmentType`, or the root's `ref` in a child. The schema rejects them, and that is deliberate: common-to-parent stays in the parent.
 
+### How `ref.design` resolves
+
+A bare filename that matches one of this node's own documents — `specs.md`, `tests.md`, `traceability.md`, `design.md`, `verify.md` — means that document of this node. Write `design.md#order-status`, not the full path. It keeps resolving after archiving moves the document from `changes/<id>/` to `doc/es/<id>/`, which a hardcoded path would not.
+
+Anything else in `ref.design` is a path relative to the project root, optionally with an anchor, like `doc/es/F-01-orden-compra/design.md#order-status` or `docs/adr/0001-monorepo.md`. The checker verifies that a path exists and that a bare name is one of the node's documents, so a typo fails the check rather than sitting there forever pointing at nothing.
+
 ## Phase
 
 `phase` says which SDD stage the work is in: `proposal`, `spec`, `design`, `task`, `apply`, `verify`, `archive`. It is optional on purpose, because whether it is clear depends on the node's size:

@@ -46,7 +46,8 @@ cada repo, y crea allí:
 ```
 <proyecto>/
 ├── AGENTS.md
-├── changes/  doc/es  doc/en  doc/glossary.md  roadmap/
+├── changes/                 # trabajo en curso; changes/archive/ guarda la historia interna
+├── doc/es  doc/en  doc/glossary.md  roadmap/
 ├── CLAUDE.md, GEMINI.md...   # solo los entry points de los harnesses que elijas
 └── .sdd/                     # ignorado por git, del Conductor
     ├── sdd.json              # versión del SDD, layout, harnesses elegidos, modelos
