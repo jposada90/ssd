@@ -32,9 +32,11 @@ def main():
     tiers = models["tiers"]
 
     saved = {}
-    config = pathlib.Path("sdd.json")
-    if config.exists():
-        saved = json.loads(config.read_text()).get("models", {})
+    for name in (".sdd.json", "sdd.json"):
+        config = pathlib.Path(name)
+        if config.exists():
+            saved = json.loads(config.read_text()).get("models", {})
+            break
 
     # Detect the harness so the concrete model id is the right vocabulary.
     harness = "opencode" if os.environ.get("OPENCODE") or pathlib.Path(".opencode").exists() else "claude"

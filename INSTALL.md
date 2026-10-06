@@ -40,6 +40,21 @@ Con `--global`:
 ~/.config/sdd-agents/root          # puntero al suite, para que el Conductor lo encuentre
 ```
 
+El instalador no toca nada dentro de un proyecto. Eso lo hace el Conductor en su primer uso en
+cada repo, y crea allí:
+
+```
+<proyecto>/
+├── AGENTS.md
+├── .sdd.json                 # versión del SDD, layout, harnesses elegidos, modelos
+├── changes/  doc/es  doc/en  doc/glossary.md  roadmap/  scripts/
+└── CLAUDE.md, GEMINI.md...   # solo los entry points de los harnesses que elijas
+```
+
+`.sdd.json` es oculto a propósito: es configuración de la suite, no documentación del proyecto,
+y así no se confunde con `AGENTS.md` ni aparece en un `ls` de un vistazo. Va versionado con el
+repo, porque registra decisiones que el equipo debe compartir.
+
 Los ficheros de agente van **planos** a propósito: en OpenCode, un anidamiento se convierte en
 parte del id (`agents/team/x.md` → `team/x`), y eso rompería las referencias entre agentes.
 
@@ -137,8 +152,17 @@ porque el layout depende de la versión del SDD. Arráncalo diciendo:
 Usa el agente conductor
 ```
 
-Y te va a pedir lo único que no puede adivinar: los comandos de verificación del proyecto, que
-van en el bloque `Verification` de `AGENTS.md`.
+Te va a preguntar dos cosas que no puede adivinar: **para qué harnesses es el repo** (y con esa
+respuesta crea solo los entry points que correspondan) y los **comandos de verificación** del
+proyecto, que van en el bloque `Verification` de `AGENTS.md`.
+
+Si prefieres hacerlo a mano:
+
+```bash
+bash scripts/init-sdd.sh                    # pregunta los harnesses, si hay terminal
+bash scripts/init-sdd.sh --for claude      # o decides tú
+bash scripts/init-sdd.sh --for none        # solo AGENTS.md, sin links
+```
 
 ## Problemas frecuentes
 
@@ -152,9 +176,27 @@ Claude Code se niega a lanzarlo. Los ficheros de `dist/claude/` llevan los nombr
 **OpenCode no encuentra el Conductor.** Comprueba que el fichero está plano en
 `~/.config/opencode/agents/`, no en un subdirectorio, y recarga OpenCode.
 
-**`SDD VERSION MISMATCH` en la primera sesión.** El proyecto ya existe y su `sdd.json` no lo
-tocó esta versión del agente. El script dice qué claves esperan otros valores: muéstraselo al
-usuario y decide con él. El Conductor nunca migra por su cuenta.
+**`SDD VERSION MISMATCH` en la primera sesión.** El proyecto ya existe y su `.sdd.json` no lo
+tocó esta versión del agente. El script dice si hay migración registrada y qué claves esperan
+otros valores. Para ver el plan sin tocar nada:
+
+```bash
+python3 scripts/migrate_sdd.py <ruta al agente conductor> --dry-run
+```
+
+Y para aplicarla, solo cuando el usuario lo diga. El Conductor nunca migra por su cuenta.
+
+**Falta `CLAUDE.md` u otro entry point y el check falla.** `.sdd.json` los registra como
+elegidos, así que o faltan en disco o son symlinks rotos. Si el proyecto ya no usa ese harness,
+bórralo de la lista `links` en `.sdd.json` en vez de crear el fichero. Para añadirlos después:
+
+```bash
+bash scripts/init-sdd.sh --for claude,copilot
+```
+
+**El check dice que los harnesses "no están decididos".** `.sdd.json` tiene `links` a `null`,
+que es distinto de una lista vacía: la lista vacía es "no quiero ninguno", y `null` es "nadie lo
+ha decidido". Pásale `--for` con los nombres.
 
 **`PREFLIGHT FAILED` con todo en verde.** El bloque `Verification` de `AGENTS.md` tiene un
 comando que devuelve distinto de cero, normalmente por estar vacío o por apuntar a algo que no

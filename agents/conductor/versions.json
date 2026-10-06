@@ -1,9 +1,9 @@
 {
-  "$comment": "Versiones del SDD. current es la que entiende este agente. Cada versión declara el layout que espera, de modo que sdd-check.sh detecta tanto un cambio de versión como un drift silencioso (alguien movió un directorio). migrations contiene los pasos de cada versión nueva; una versión ya publicada no se edita.",
-  "current": "1.0",
+  "$comment": "Versiones del SDD. current es la que entiende este agente. El layout es lo que debe existir siempre; linkOptions es el catalogo de entry points que se pueden enlazar a AGENTS.md, y solo se crean los que elija el usuario al inicializar. sdd_check.py verifica los links registrados en .sdd.json, no todo el catalogo. Una version ya publicada no se edita: se publica la siguiente con su migracion.",
+  "current": "1.1",
   "versions": {
     "1.0": {
-      "summary": "Layout inicial del ciclo SDD.",
+      "summary": "Layout inicial del ciclo SDD. Los cuatro entry points se creaban siempre.",
       "layout": {
         "agentsFile": "AGENTS.md",
         "configFile": "sdd.json",
@@ -23,7 +23,46 @@
           ".github/copilot-instructions.md"
         ]
       },
+      "linkOptions": {
+        "claude": "CLAUDE.md",
+        "gemini": "GEMINI.md",
+        "cursor": ".cursorrules",
+        "copilot": ".github/copilot-instructions.md"
+      },
       "migrations": []
+    },
+    "1.1": {
+      "summary": "El fichero de configuracion pasa a .sdd.json y los entry points pasan a elegirse al inicializar.",
+      "layout": {
+        "agentsFile": "AGENTS.md",
+        "configFile": ".sdd.json",
+        "workingDir": "changes",
+        "archiveEs": "doc/es",
+        "archiveEn": "doc/en",
+        "glossary": "doc/glossary.md",
+        "roadmapDir": "roadmap",
+        "roadmapMain": "roadmap/main.json",
+        "roadmapSchema": "roadmap/schema/roadmap.schema.json",
+        "roadmapChecker": "roadmap/schema/check_roadmap.py",
+        "scriptsDir": "scripts"
+      },
+      "linkOptions": {
+        "claude": "CLAUDE.md",
+        "gemini": "GEMINI.md",
+        "cursor": ".cursorrules",
+        "copilot": ".github/copilot-instructions.md"
+      },
+      "migrations": [
+        {
+          "from": "1.0",
+          "summary": "sdd.json se renombra a .sdd.json y los links pasan a ser los que el proyecto ya tenia.",
+          "steps": [
+            { "op": "rename", "from": "sdd.json", "to": ".sdd.json" },
+            { "op": "initLinks" },
+            { "op": "setLayout" }
+          ]
+        }
+      ]
     }
   }
 }

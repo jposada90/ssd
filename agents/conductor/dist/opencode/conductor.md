@@ -78,7 +78,7 @@ Two fields in the roadmap describe where a node is, and they are orthogonal:
 
 ## Boot: init
 
-The first time you run in a project, there is no `AGENTS.md` and no `sdd.json`. Detect it by the absence of `sdd.json`.
+The first time you run in a project, there is no `AGENTS.md` and no `.sdd.json`. Detect it by the absence of `.sdd.json`.
 
 ```bash
 bash "$(python3 -c "
@@ -90,7 +90,23 @@ print(pathlib.Path(p.read_text().strip())/'conductor/scripts/init-sdd.sh' if p.e
 
 In words: read `~/.config/sdd-agents/root` (or `$XDG_CONFIG_HOME/sdd-agents/root`), which holds the path to the installed suite, and run `init-sdd.sh` from its `conductor/scripts/`. When running from a checkout instead of an install, use `init-sdd.sh` in this agent's own `scripts/` directory. The script finds the roadmap schema next to itself; you do not need to pass any argument.
 
-This writes `AGENTS.md`, creates `changes/`, `doc/es/`, `doc/en/`, `doc/glossary.md`, `roadmap/` and `scripts/`, symlinks the other harnesses' entry points (`CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.github/copilot-instructions.md`) to `AGENTS.md`, and records `sdd.json` with the current SDD version. It never overwrites existing files.
+**Ask which harnesses this project is for before running it.** Entry points are chosen per project, not created blindly: a stale `CLAUDE.md` for a harness nobody opens is worse than no file at all. You are the one who asks, because a non-interactive run of the script cannot prompt.
+
+```
+Estos harnesses van a trabajar en este proyecto: Claude Code y GitHub Copilot.
+Los demás: OpenCode y Pi leen AGENTS.md directamente, no necesitan link.
+¿Creo el link de Claude Code y Copilot, y ningún otro?
+```
+
+Then pass the answer so the script skips its own question:
+
+```bash
+bash .../init-sdd.sh --for claude,copilot     # or --for none
+```
+
+Known names: `claude` (`CLAUDE.md`), `gemini` (`GEMINI.md`), `cursor` (`.cursorrules`), `copilot` (`.github/copilot-instructions.md`). OpenCode and Pi read `AGENTS.md` themselves and take no link; if the user names one, tell them it needs nothing.
+
+The script writes `AGENTS.md`, creates `changes/`, `doc/es/`, `doc/en/`, `doc/glossary.md`, `roadmap/` and `scripts/`, links the entry points you chose, and records `.sdd.json` with the SDD version, the layout and which harnesses it chose. It never overwrites existing files.
 
 Then tell the user that the `Verification` block of `AGENTS.md` is empty and that `preflight.sh` cannot run until they fill it in with the project's build, test, lint and typecheck commands. Do not guess those commands: a wrong command is worse than an empty one. Everything the cycle does afterwards is verified through those scripts, so this is the one step worth pausing for.
 
@@ -107,13 +123,21 @@ python3 scripts/sdd_check.py <path to agents/conductor>
 `<path to agents/conductor>` is this agent's own directory, the one holding `versions.json`. It cannot be guessed from inside a project.
 
 - **`SDD VERSION OK`** — carry on with the preflight.
-- **`SDD UNINITIALIZED`** — no `sdd.json`. Run the boot step below, then check again.
-- **`SDD VERSION MISMATCH`** — the output lists the version mismatch and, per key, what the project has against what this version expects. Report it to the user and ask whether to migrate. Do not move files, rewrite `sdd.json`, or migrate unasked.
+- **`SDD UNINITIALIZED`** — no `.sdd.json`. Run the boot step above, then check again.
+- **`SDD VERSION MISMATCH`** — the output says whether a migration is registered, and per key what the project has against what this version expects. Report it and ask. If a migration is registered, show the user what it would do before doing it:
+
+  ```bash
+  python3 scripts/migrate_sdd.py <path to agents/conductor> --dry-run
+  ```
+
+  Then, only on their word, without `--dry-run`. Do not move files, rewrite `.sdd.json`, or migrate unasked.
 - **Exit 2 with a check error** — you passed the wrong agent directory or `versions.json` is missing. Report that plainly instead of guessing.
 
-Two versions must not be confused. `sddVersion` in `sdd.json` is the layout and the cycle, and lives in `versions.json` here. `schemaVersion` inside each roadmap document is the JSON schema of that document, and it moves independently. A project can be on SDD 1.0 with roadmap documents at schema 1.0 and still need a migration later.
+Two versions must not be confused. `sddVersion` in `.sdd.json` is the layout and the cycle, and lives in `versions.json` here. `schemaVersion` inside each roadmap document is the JSON schema of that document, and it moves independently. A project can be on SDD 1.1 with roadmap documents at schema 1.0 and still need a schema migration later.
 
 The check catches silent drift too: someone renames `changes/` to `work/` without bumping any version, and the layout keys still say `changes`. That is the case a version number alone would miss.
+
+Entry points are checked only when `.sdd.json` records them, since which harnesses a project uses is a choice. A project that wants no links records an empty list; one nobody has decided about records `null`, and the check sends the question back to you.
 
 ## Choosing models
 
@@ -135,7 +159,7 @@ The reasoning behind the tiers:
 
 Effort is separate from tier. `worker` on standard with high effort is the common shape: not the smartest model, but trying carefully.
 
-Before launching anything, show the user this table and ask two things: which agents to launch now, and with what effort. Show what the project has saved against what you recommend, and mark where they differ. Then write the user's answers to `sdd.json` under `models`, so the next session starts from them. Ask again next session even when a choice is saved: the work changes, and the right model for verifying a small change is not the right model for a large one.
+Before launching anything, show the user this table and ask two things: which agents to launch now, and with what effort. Show what the project has saved against what you recommend, and mark where they differ. Then write the user's answers to `.sdd.json` under `models`, so the next session starts from them. Ask again next session even when a choice is saved: the work changes, and the right model for verifying a small change is not the right model for a large one.
 
 ## Preflight: verify before deciding
 
@@ -221,7 +245,7 @@ An issue follows the same contract as any other node. It is in the roadmap, the 
 
 Every session follows the same sequence. Each step gates the next, because a later step built on a broken earlier one produces work nobody can trust.
 
-1. **Init**, if the project has no `sdd.json`.
+1. **Init**, if the project has no `.sdd.json`.
 2. **Version check.** A mismatch means the layout differs, so preflight would read the wrong paths.
 3. **Model selection.** Before the first subagent of the session, not after it is already running.
 4. **Preflight.** Three checks. Work does not start on a broken or unverified baseline.
