@@ -51,8 +51,8 @@ En cada sesión, en este orden:
 2. **Versión.** Compara la versión del SDD y su layout con lo que espera el agente. Detecta el
    cambio de versión y también el drift silencioso. Si hay migración registrada, te enseña el
    plan en `--dry-run` antes de preguntar.
-3. **Modelos.** Recomienda modelo y esfuerzo por subagente, muestra lo guardado contra lo
-   recomendado y pregunta cuál lanzar. Siempre pregunta, aunque haya elección guardada.
+3. **Modelos.** Recomienda modelo y esfuerzo por subagente, muestra lo guardado en `.sdd.json`
+   contra lo recomendado, y pregunta siempre, incluso si hay elección guardada.
 4. **Preflight.** Tres checks: build/test/lint, árbol de git, consistencia del roadmap.
 5. **Enrutado.** Lee `TreeTask.md` y clasifica la petición: tarea existente, nueva, bug, o
    consulta.
@@ -226,10 +226,32 @@ que el ciclo sea verificable sin este repo presente.
 | `sdd_check.py` | Compara la versión y el layout con lo que espera el agente. Detecta el cambio de versión y el drift silencioso, y verifica solo los entry points elegidos. |
 | `migrate_sdd.py` | Aplica la migración registrada, en declarativo desde `versions.json`. `--dry-run` enseña el plan sin tocar nada. |
 | `i18n-check.sh` | Comprueba que `doc/es` y `doc/en` están sincronizados y que existe glosario. No juzga calidad de traducción, atrapa deriva de estructura y terminología. |
-| `models.py` | Propone modelo y esfuerzo por subagente, mezclando lo guardado con lo recomendado. Aplica overrides por fase. |
+| `models.py` | Propone modelo y esfuerzo por subagente, mezclando lo guardado en `.sdd.json` con lo recomendado, con override por fase. `--save` registra la respuesta del usuario validando tier y esfuerzo; `--clear` borra un default guardado. |
 
 Cada uno está probado en ambos sentidos: fallan con el detalle del problema y pasan cuando todo
 está en orden.
+
+### Modelos guardados por proyecto
+
+La elección del usuario vive en `.sdd.json`, en `models`:
+
+```json
+"models": {
+  "verifier": { "tier": "light", "effort": "low" },
+  "documentation-maintainer": {
+    "tier": "standard", "effort": "medium",
+    "byPhase": { "archive": { "tier": "light", "effort": "low" } }
+  }
+}
+```
+
+Se guarda **tier y esfuerzo, nunca el id concreto del modelo**: el tier es neutral respecto al
+harness y `models.json` lo traduce. Cambiar de modelo no toca ningún proyecto.
+
+`--save` valida contra `models.json` y no guarda nada si el tier o el esfuerzo no existen, porque
+un error de tipeo escrito en el JSON dejaría un agente clavado en el modelo equivocado para
+siempre. Un default nuevo no borra las respuestas por fase, que son decisiones aparte; para
+quitarlas está `--clear`.
 
 ### Versionado del SDD
 

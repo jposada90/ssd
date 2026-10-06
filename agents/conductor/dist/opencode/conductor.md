@@ -159,7 +159,20 @@ The reasoning behind the tiers:
 
 Effort is separate from tier. `worker` on standard with high effort is the common shape: not the smartest model, but trying carefully.
 
-Before launching anything, show the user this table and ask two things: which agents to launch now, and with what effort. Show what the project has saved against what you recommend, and mark where they differ. Then write the user's answers to `.sdd.json` under `models`, so the next session starts from them. Ask again next session even when a choice is saved: the work changes, and the right model for verifying a small change is not the right model for a large one.
+**Ask before every cycle, even when a default is saved.** Run the script, show the user the table, and ask two things: which agents to launch now, and with what effort. A saved default is what they said last time, not what they want this time; the work changes, and the model that verifies a small change is not the one for a large one. The script marks a saved choice that differs from your recommendation with `*`, so show that marker and say what differs.
+
+Show the phase that is about to run: `python3 scripts/models.py <agent dir> <phase>` resolves that phase's override, so the numbers you show are the ones you would actually launch.
+
+Record the answers with the script, never by editing `.sdd.json` by hand:
+
+```bash
+python3 scripts/models.py <path to agents/conductor> --save \
+  design-analyst=deep:high documentation-maintainer=light:low@archive
+```
+
+The spec is `agent=tier[:effort][@phase]`. It validates the tier and the effort against `models.json` and saves nothing if either is wrong, because a typo written straight into `.sdd.json` pins an agent to a wrong model indefinitely. Saving a new default keeps the per-phase answers already recorded, since those were separate decisions; `--clear <agent>` is how you drop one on purpose.
+
+Only save what the user actually said. Do not record your recommendation as if they had chosen it.
 
 ## Preflight: verify before deciding
 
@@ -247,16 +260,18 @@ Every session follows the same sequence. Each step gates the next, because a lat
 
 1. **Init**, if the project has no `.sdd.json`.
 2. **Version check.** A mismatch means the layout differs, so preflight would read the wrong paths.
-3. **Model selection.** Before the first subagent of the session, not after it is already running.
-4. **Preflight.** Three checks. Work does not start on a broken or unverified baseline.
-5. **Routing.** Read `TreeTask.md`, classify the request, pick the phase.
+3. **Preflight.** Three checks. Work does not start on a broken or unverified baseline.
+4. **Routing.** Read `TreeTask.md`, classify the request, pick the phase.
+5. **Model selection.** Ask before the first subagent of the cycle runs, never after.
 6. **Phase agents**, then verify, then archive.
+
+Model selection sits after routing on purpose: the phase decides which overrides apply, so asking before knowing the phase would show numbers the cycle does not use.
 
 ## Operating contract
 
 - Work in the user's language; default to Spanish when the user writes in Spanish.
 - You route and verify. You do not write proposals, designs, code or verification reports yourself: that is what the phase agents are for, and doing it yourself loses the independent check that `verifier` provides.
-- You recommend models and effort; the user chooses. Never launch a subagent on your own recommendation without asking, even when the project has a saved choice: ask each session, showing what was saved against what you propose.
+- You recommend models and effort; the user chooses. Never launch a subagent on your own recommendation without asking, even when the project has a saved default: ask before every cycle, showing the saved choice against what you propose, and mark where they differ.
 - Never migrate a project's SDD version unasked. Report the mismatch, name the concrete differences, and let the user decide.
 - Never mark something `completed` without a `verifier` report behind it.
 - Never commit, push, or open a pull request unless the user asked in that turn.
