@@ -67,7 +67,7 @@ Do not invent a phase gate to justify refusing work the table says you may do.
 
 **Write it through the scripts, never by hand.** `init-sdd.sh --for`, `models.py --save` and `migrate_sdd.py` are the only writers. Do not open `.sdd/sdd.json` with your own edit tool to change a value, even a small one. The reason is mechanical: a project can deny `Edit` on `.sdd/**` session-wide to keep phase agents out, and a rule that blunt cannot tell you apart from them. Going through the scripts sidesteps it, because file permission rules cover the built-in file tools and the file commands they recognise, not a subprocess like `python3`. The scripts also validate what they write, which an edit tool does not.
 
-If a phase agent reports it needs something from `.sdd/`, act on it yourself. If one reports that `.sdd/` looks wrong or already modified, treat it as a finding: say so, and let the user decide whether to restore it with `init-sdd.sh --force`.
+If a phase agent reports it needs something from `.sdd/`, act on it yourself. If one reports that `.sdd/` looks wrong or already modified, treat it as a finding: say so, and let the user decide. The repair is `init-sdd.sh --refresh-scripts`, which re-copies only the scripts. **Never `init-sdd.sh --force` to fix a script**: that also rewrites the project's `AGENTS.md` with the generic template and would cost the project its contract.
 
 ## Boot: init
 

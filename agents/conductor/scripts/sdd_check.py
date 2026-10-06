@@ -203,36 +203,36 @@ def main():
     print()
 
     if project_version != agent_version:
+        steps = []
         if project_version in known:
             steps = known[project_version].get("migrations", [])
-            if steps:
-                problems.append(
-                    f"version mismatch: project {project_version}, agent {agent_version}. "
-                    f"A migration is registered; run migrate_sdd.py and report it to the user."
-                )
-            else:
-                problems.append(
-                    f"version mismatch: project {project_version}, agent {agent_version}. "
-                    f"No migration steps registered; do it by hand."
-                )
+
+        if steps:
+            # One coherent instruction. Telling the user to run a migration and, in the
+            # next line, to compare the layouts by hand, reads as two conflicting asks.
+            problems.append(
+                f"version mismatch: project {project_version}, agent {agent_version}. "
+                f"Show the user 'migrate_sdd.py {agent_dir} --dry-run' and ask before "
+                f"applying it. Do not rewrite the project unasked."
+            )
         else:
             problems.append(
-                f"version mismatch: project {project_version} is unknown to this agent "
-                f"(agent knows {agent_version}). No migration path exists."
+                f"version mismatch: project {project_version}, agent {agent_version}. "
+                + ("No migration is registered from that version, so there is no automatic "
+                   "path. " if project_version in known else
+                   f"That version is unknown to this agent, so there is no path. ")
+                + "Compare the layouts by hand and tell the user what moves."
             )
 
-        expected_layout = known.get(agent_version, {}).get("layout", {})
-        recorded_layout = project.get("layout", {})
-        for key, path in expected_layout.items():
-            if key == "symlinks":
-                continue
-            was = recorded_layout.get(key)
-            if was and was != path:
-                problems.append(f"  {key}: project has {was}, this version expects {path}")
-        problems.append(
-            "  compare the two layouts by hand and tell the user what moves; "
-            "do not rewrite the project unasked."
-        )
+        if not steps:
+            expected_layout = known.get(agent_version, {}).get("layout", {})
+            recorded_layout = project.get("layout", {})
+            for key, path in expected_layout.items():
+                if key == "symlinks":
+                    continue
+                was = recorded_layout.get(key)
+                if was and was != path:
+                    problems.append(f"  {key}: project has {was}, this version expects {path}")
 
     spec = known.get(agent_version, {})
     layout = spec.get("layout")
@@ -260,7 +260,9 @@ def main():
         for drifted in scripts_drift(agent_dir, sdd_dir):
             problems.append(
                 f"{drifted}: .sdd/ belongs to the Conductor and must match the suite. "
-                f"Re-run init-sdd.sh --force to restore it."
+                f"Restore it with 'init-sdd.sh --refresh-scripts', which re-copies only "
+                f"the scripts. Do NOT use --force for this: it also rewrites AGENTS.md "
+                f"and the recorded configuration."
             )
 
         # Only the entry points the project asked for. A project that never wanted

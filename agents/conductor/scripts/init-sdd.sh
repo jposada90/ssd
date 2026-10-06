@@ -21,7 +21,8 @@
 # Usage:
 #   init-sdd.sh                       asks which harnesses, if on a terminal
 #   init-sdd.sh --for claude,copilot  skips the question
-#   init-sdd.sh --force               overwrite files that already exist
+#   init-sdd.sh --refresh-scripts     re-copy .sdd/scripts/ from the suite, touch nothing else
+#   init-sdd.sh --force               rewrite the config, preserving links and model choices
 #
 # Idempotent: existing files are never overwritten.
 set -uo pipefail
@@ -31,12 +32,42 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || exit 2
 AGENT_SRC="${AGENT_SRC:-}"
 AGENT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FOR=""
+REFRESH_SCRIPTS=0
+
+# Locate the installed suite. When this script runs from the suite it is its own parent.
+# When it runs from a project's .sdd/scripts it must find the suite by the pointer: its
+# own directory has no versions.json, so resolving the version or the harness names from
+# there fails, and a refresh would copy a drifted file over itself.
+locate_suite() {
+  if [ -f "$AGENT_DIR/versions.json" ] && [ -d "$AGENT_DIR/scripts" ]; then
+    echo "$AGENT_DIR"
+    return
+  fi
+  local pointer="${XDG_CONFIG_HOME:-$HOME/.config}/sdd-agents/root"
+  if [ -f "$pointer" ]; then
+    local root
+    root="$(cat "$pointer" 2>/dev/null)"
+    if [ -n "$root" ] && [ -f "$root/conductor/versions.json" ]; then
+      echo "$root/conductor"
+      return
+    fi
+  fi
+  echo ""
+}
+
+SUITE="$(locate_suite)"
+if [ -z "$SUITE" ]; then
+  echo "error: cannot find the installed suite." >&2
+  echo "       Looked for versions.json next to this script and at" >&2
+  echo "       ${XDG_CONFIG_HOME:-$HOME/.config}/sdd-agents/root" >&2
+  echo "       Run install.sh, or pass --source <repo root>." >&2
+  exit 2
+fi
 
 # The roadmap schema travels with the suite, so this normally needs no argument.
-# A copy living in .sdd/scripts has no suite to look at, but the project itself has
-# the schema under roadmap/schema/, which is the right place to read it from.
+# A copy living in .sdd/scripts falls back to the project's own roadmap/schema/.
 if [ -z "${ROADMAP_SRC:-}" ]; then
-  for candidate in "$AGENT_DIR/../task-decomposer/schema" "roadmap/schema" "$AGENT_DIR/schema"; do
+  for candidate in "$SUITE/../task-decomposer/schema" "roadmap/schema" "$AGENT_DIR/schema"; do
     if [ -f "$candidate/roadmap.schema.json" ]; then
       ROADMAP_SRC="$(cd "$candidate" && pwd)"
       break
@@ -52,17 +83,59 @@ FORCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --force) FORCE=1 ;;
+    --refresh-scripts) REFRESH_SCRIPTS=1 ;;
     --for) shift; [ $# -gt 0 ] && FOR="${1//,/ }" || { echo "error: --for needs a value" >&2; exit 2; } ;;
     --for=*) FOR="${1#--for=}"; FOR="${FOR//,/ }" ;;
-    -h|--help) sed -n '3,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '3,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
 
+# The narrow repair. A drifted or stale script is fixed by re-copying the scripts and
+# nothing else: it must never cost the project its AGENTS.md or its recorded choices,
+# which is exactly what a blanket --force would do.
+if [ "$REFRESH_SCRIPTS" = 1 ]; then
+  echo "== suite: $SUITE"
+
+  mkdir -p .sdd/scripts
+  refreshed=()
+  for s in init-sdd.sh preflight.sh git-check.sh i18n-check.sh sdd_check.py migrate_sdd.py models.py; do
+    src="$SUITE/scripts/$s"
+    [ -f "$src" ] || continue
+    # Same inode: copying it would only produce a confusing error and change nothing.
+    if [ "$src" -ef ".sdd/scripts/$s" ] 2>/dev/null; then continue; fi
+    cp "$src" .sdd/scripts/
+    chmod +x ".sdd/scripts/$s" 2>/dev/null
+    refreshed+=(".sdd/scripts/$s")
+  done
+  if [ -n "$ROADMAP_SRC" ] && [ -f "$ROADMAP_SRC/check_roadmap.py" ]; then
+    if ! [ "$ROADMAP_SRC/check_roadmap.py" -ef .sdd/scripts/check_roadmap.py ] 2>/dev/null; then
+      cp "$ROADMAP_SRC/check_roadmap.py" .sdd/scripts/
+      chmod +x .sdd/scripts/check_roadmap.py 2>/dev/null
+      refreshed+=(".sdd/scripts/check_roadmap.py")
+    fi
+  fi
+
+  if [ ${#refreshed[@]} -eq 0 ]; then
+    echo "nothing to restore: .sdd/scripts already matches the suite"
+  else
+    echo "== refreshed ${#refreshed[@]} script(s)"
+    printf '  %s\n' "${refreshed[@]}"
+  fi
+  echo
+  echo "Nothing else was touched. Run sdd_check.py to confirm."
+  exit 0
+fi
+
 created=()
 
 if [ ! -f AGENTS.md ] || [ "$FORCE" = 1 ]; then
+  if [ "$FORCE" = 1 ] && [ -f AGENTS.md ] && [ -z "$AGENT_SRC" ]; then
+    echo "warning: --force rewrites AGENTS.md with the generic template." >&2
+    echo "         The project's own AGENTS.md will be replaced. Copy it first, or" >&2
+    echo "         pass AGENT_SRC=<file> to install a specific one." >&2
+  fi
   if [ -n "$AGENT_SRC" ] && [ -f "$AGENT_SRC" ]; then
     cp "$AGENT_SRC" AGENTS.md
     created+=("AGENTS.md")
@@ -116,8 +189,15 @@ EOF
   fi
 fi
 
-mkdir -p changes doc/es doc/en roadmap/issues changes/archive
-created+=("changes/" "changes/archive/" "doc/es/" "doc/en/" "roadmap/issues/")
+ensure_dir() {
+  [ -d "$1" ] || created+=("$1/")
+  mkdir -p "$1"
+}
+ensure_dir changes
+ensure_dir changes/archive
+ensure_dir doc/es
+ensure_dir doc/en
+ensure_dir roadmap/issues
 
 if [ ! -f doc/glossary.md ]; then
   cat > doc/glossary.md <<'EOF'
@@ -232,7 +312,7 @@ ask_links() {
 
 # Resolve harness names to link paths using the agent's catalogue.
 resolve_links() {
-  python3 - "$AGENT_DIR/versions.json" "$AGENT_VERSION" "$1" <<'PY'
+  python3 - "$SUITE/versions.json" "$AGENT_VERSION" "$1" <<'PY'
 import json, sys
 versions_path, version, wanted = sys.argv[1], sys.argv[2], sys.argv[3].split()
 options = json.load(open(versions_path))["versions"][version]["linkOptions"]
@@ -242,7 +322,7 @@ for name in options:
 PY
 }
 
-AGENT_VERSION="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['current'])" "$AGENT_DIR/versions.json")"
+AGENT_VERSION="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['current'])" "$SUITE/versions.json")"
 
 wanted=""
 links_decided=0
@@ -295,14 +375,14 @@ fi
 SDD_DIR=".sdd"
 SDD_SCRIPTS="$SDD_DIR/scripts"
 
-mkdir -p "$SDD_SCRIPTS"
-created+=("$SDD_DIR/" "$SDD_SCRIPTS/")
+ensure_dir "$SDD_DIR"
+ensure_dir "$SDD_SCRIPTS"
 
 # The scripts live in the project so the cycle is verifiable without this repo, and
 # under .sdd/ so they are machine-local rather than something the team inherits.
 for s in init-sdd.sh preflight.sh git-check.sh i18n-check.sh sdd_check.py migrate_sdd.py models.py; do
-  if [ -f "$AGENT_DIR/scripts/$s" ] && [ ! -f "$SDD_SCRIPTS/$s" ]; then
-    cp "$AGENT_DIR/scripts/$s" "$SDD_SCRIPTS/$s"
+  if [ -f "$SUITE/scripts/$s" ] && [ ! -f "$SDD_SCRIPTS/$s" ]; then
+    cp "$SUITE/scripts/$s" "$SDD_SCRIPTS/$s"
     chmod +x "$SDD_SCRIPTS/$s" 2>/dev/null
     created+=("$SDD_SCRIPTS/$s")
   fi
@@ -335,24 +415,41 @@ fi
 # .sdd/sdd.json records which SDD version last touched this project, the layout it
 # declared, which entry points it chose, and the user's model choices.
 if [ ! -f "$SDD_DIR/sdd.json" ] || [ "$FORCE" = 1 ]; then
-  python3 - "$AGENT_DIR/versions.json" "$AGENT_VERSION" "$(date -u +%Y-%m-%d)" "$chosen_links" "$links_decided" <<'PY'
-import json, sys
+  python3 - "$SUITE/versions.json" "$AGENT_VERSION" "$(date -u +%Y-%m-%d)" "$chosen_links" "$links_decided" <<'PY'
+import json, pathlib, sys
 versions_path, version, today, chosen, decided = sys.argv[1:6]
 spec = json.load(open(versions_path))["versions"][version]
+
+previous = {}
+config = pathlib.Path(".sdd/sdd.json")
+if config.exists():
+    try:
+        previous = json.loads(config.read_text())
+    except ValueError:
+        previous = {}
+
 # [] means "deliberately none"; null means "nobody has decided yet". Those are
 # different states, so sdd_check.py rejects null and sends the question back.
 if decided == "1":
     links = [line.split(":", 1)[1] for line in chosen.split() if ":" in line]
+elif "links" in previous:
+    # A rewrite without --for must not un-decide what was already decided, or the
+    # next session asks the same question again for no reason.
+    links = previous["links"]
 else:
     links = None
+
+# Model choices are the user's and the most expensive thing to lose silently.
+models = previous.get("models") or {}
+
 doc = {
     "sddVersion": version,
-    "initializedAt": today,
+    "initializedAt": previous.get("initializedAt") or today,
     "layout": {k: v for k, v in spec["layout"].items() if k != "symlinks"},
     "links": links,
-    "models": {},
+    "models": models,
 }
-with open(".sdd/sdd.json", "w") as fh:
+with config.open("w") as fh:
     json.dump(doc, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PY

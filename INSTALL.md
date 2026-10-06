@@ -240,6 +240,18 @@ python3 .sdd/scripts/migrate_sdd.py <ruta al agente conductor> --dry-run
 
 Y para aplicarla, solo cuando el usuario lo diga. El Conductor nunca migra por su cuenta.
 
+**Un script de `.sdd/scripts/` difiere del suite.** Es la señal de que alguien editó `.sdd/` a
+mano. El remedio re-copia solo los scripts y no toca nada más:
+
+```bash
+bash .sdd/scripts/init-sdd.sh --refresh-scripts
+```
+
+**No uses `init-sdd.sh --force` para eso.** `--force` reescribe el `AGENTS.md` del proyecto con la
+plantilla genérica, y avisa de ello antes de hacerlo. Para lo que sí sirve `--force` es reescribir
+`.sdd/sdd.json` contra la versión actual, y conserva los harnesses elegidos y las elecciones de
+modelo salvo que le pases un `--for` nuevo.
+
 **Falta `CLAUDE.md` u otro entry point y el check falla.** `.sdd/sdd.json` los registra como
 elegidos, así que o faltan en disco o son symlinks rotos. Si el proyecto ya no usa ese harness,
 bórralo de la lista `links` en `.sdd/sdd.json` en vez de crear el fichero. Para añadirlos después:
