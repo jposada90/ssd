@@ -46,7 +46,8 @@ cada repo, y crea allí:
 ```
 <proyecto>/
 ├── AGENTS.md
-├── changes/                 # trabajo en curso; changes/archive/ guarda la historia interna
+├── changes/                 # trabajo en curso, ignorado por git
+│   └── archive/             #   historia interna de cambios ya terminados, versionada
 ├── doc/es  doc/en  doc/glossary.md  roadmap/
 ├── CLAUDE.md, GEMINI.md...   # solo los entry points de los harnesses que elijas
 └── .sdd/                     # ignorado por git, del Conductor
@@ -58,6 +59,12 @@ cada repo, y crea allí:
 `.sdd/` es local de la máquina y va bajo `.gitignore` desde el primer `init`, porque lleva rutas
 absolutas y las elecciones de modelo de una persona, que no son del equipo. Lo que el equipo
 comparte se queda versionado: `AGENTS.md` y `roadmap/`.
+
+`changes/` también va ignorada, y por la misma razón de alcance: es trabajo en curso. Un documento
+entra en git cuando el Conductor lo archiva en `doc/es/`. La excepción es `changes/archive/`, que sí
+se versiona, y para que eso funcione la negociación `!changes/archive/` tiene que ir **después** de
+`changes/*`: git no re-incluye un directorio que su propio padre excluyó, así que puesta antes deja
+el archivo del historial ignorado y se pierde sin avisar. `sdd_check.sh` comprueba las tres reglas.
 
 ### Que los agentes no toquen `.sdd/`
 

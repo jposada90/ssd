@@ -31,8 +31,8 @@ LEGACY_SCRIPTS_DIR = "scripts"
 
 
 def gitignore_ok(path="."):
-    """Is `path` ignored by git? A .sdd/ that is not ignored gets committed, and with
-    it absolute paths and one person's model choices."""
+    """Is `path` ignored by git? Return True/False, or None when git cannot answer
+    because there is no repo or git is missing."""
     try:
         out = subprocess.run(
             ["git", "check-ignore", "-q", path],
@@ -41,6 +41,77 @@ def gitignore_ok(path="."):
         return out.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return None  # not a git repo, or git is unavailable
+
+
+def check_ignore_rules(layout, problems):
+    """Three invariants, and the third is the one that catches a half-finished rule.
+
+    .sdd/ ignored, because it holds absolute paths and one person's model choices.
+    changes/* ignored, because a half-written spec is not something a reviewer should
+    have to read in a diff. And changes/archive/ NOT ignored, because the negation after
+    changes/* is what keeps the internal history of finished changes in git. Getting
+    that negation wrong silently loses the archive, so it is checked like the others."""
+    sdd_dir = layout.get("sddDir", ".sdd")
+    working = layout.get("workingDir", "changes")
+    working_archive = layout.get("workingArchiveDir", f"{working}/archive")
+
+    # A 'changes/*' pattern does not match the directory itself, only its children, so
+    # the working dir has to be probed through a file inside it. Probing 'changes' would
+    # always answer "not ignored" and the check would pass with no rule at all.
+    probe = pathlib.Path(working) / ".sdd-check-probe"
+    probe_created_dir = False
+    if not probe.parent.is_dir():
+        probe.parent.mkdir(parents=True, exist_ok=True)
+        probe_created_dir = True
+    try:
+        probe.touch()
+        working_state = gitignore_ok(str(probe))
+    finally:
+        probe.unlink(missing_ok=True)
+        if probe_created_dir:
+            try:
+                probe.parent.rmdir()
+            except OSError:
+                pass
+
+    probe_archive = pathlib.Path(working_archive) / ".sdd-check-probe"
+    archive_dir_existed = probe_archive.parent.is_dir()
+    if not archive_dir_existed:
+        probe_archive.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        probe_archive.touch()
+        archive_state = gitignore_ok(str(probe_archive))
+    finally:
+        probe_archive.unlink(missing_ok=True)
+        if not archive_dir_existed:
+            try:
+                probe_archive.parent.rmdir()
+            except OSError:
+                pass
+
+    ignored = {
+        ".sdd/": gitignore_ok(sdd_dir),
+        f"{working}/*": working_state,
+        f"{working_archive}/": archive_state,
+    }
+
+    if ignored[".sdd/"] is False:
+        problems.append(
+            f"{sdd_dir}/ is NOT in .gitignore: it would be committed, with absolute "
+            f"paths and one person's model choices. Add {sdd_dir}/ to .gitignore."
+        )
+    if working_state is False:
+        problems.append(
+            f"{working}/ is NOT in .gitignore: working documents would be committed as "
+            f"drafts. Add 'changes/*' so a document reaches git when it is archived."
+        )
+    if archive_state is not False:
+        problems.append(
+            f"{working_archive}/ must NOT be ignored, or the internal history of every "
+            f"finished change is lost. Add '!{working_archive}/' AFTER 'changes/*'; git "
+            f"cannot re-include a directory its own parent excluded."
+        )
+    return ignored
 
 
 def suite_scripts(agent_dir):
@@ -180,15 +251,11 @@ def main():
                     f"{key}: .sdd/sdd.json records {recorded[key]}, this version expects {path}"
                 )
 
-        # .sdd/ must not be committable. An ignored directory is the only thing that
-        # actually keeps this rule; a prompt asking nicely is not.
+        # Version control must refuse the local state and the drafts, while keeping the
+        # archived history. An ignored directory is the only thing that actually keeps
+        # these rules; a prompt asking nicely is not.
+        ignored = check_ignore_rules(layout, problems)
         sdd_dir = layout.get("sddDir", ".sdd")
-        ignored = gitignore_ok(sdd_dir)
-        if ignored is False:
-            problems.append(
-                f"{sdd_dir}/ is NOT in .gitignore: it would be committed, with absolute "
-                f"paths and one person's model choices. Add {sdd_dir}/ to .gitignore."
-            )
 
         for drifted in scripts_drift(agent_dir, sdd_dir):
             problems.append(
@@ -230,8 +297,8 @@ def main():
         print("entry points: " + ", ".join(project["links"]))
     elif project.get("links") == []:
         print("entry points: none by choice, AGENTS.md only")
-    if ignored is True:
-        print(".sdd/: ignored by git, as it should be")
+    if ignored.get(".sdd/") is True and ignored.get("changes/*") is True:
+        print("git: .sdd/ and changes/ drafts ignored, changes/archive/ kept, as it should be")
     print("SDD VERSION OK")
     return 0
 

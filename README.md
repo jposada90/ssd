@@ -45,14 +45,28 @@ como agente de documentación del repositorio.
 │   ├── TreeTask.md        # índice generado; no se edita a mano
 │   ├── schema/            # el schema de los documentos del roadmap
 │   └── <ID>-<slug>/
-├── changes/               # trabajo en curso, versionado
+├── changes/               # trabajo en curso, IGNORADO por git
 │   └── <id>/              #   proposal, specs, design, apply, verify
-├── changes/archive/       # historia interna de cambios ya archivados
+├── changes/archive/       # historia interna de cambios ya archivados, versionada
 ├── doc/es/<id>/           # documentación del producto, en español, versionada
 ├── doc/en/<id>/           # su traducción
 ├── doc/glossary.md        # terminología del proyecto
 └── .sdd/                  # configuración y scripts del Conductor, ignorado
 ```
+
+## Qué ignora git, y por qué
+
+| Ruta | Estado | Motivo |
+|---|---|---|
+| `.sdd/` | ignorada | rutas absolutas y las elecciones de modelo de una persona |
+| `changes/<id>/` | ignorada | trabajo en curso: una spec a medio escribir no es algo que un revisor debería leer en un diff |
+| `changes/archive/` | **versionada** | la historia interna de un cambio terminado sí merece quedar en git |
+
+Un documento entra en control de versiones **cuando lo archivas** en `doc/es/`, no antes. Las dos
+reglas de gitignore son un mecanismo, no dos: `changes/*` ignora el contenido, y `!changes/archive/`
+va **después** porque git no puede re-incluir un directorio que su propio padre excluyó. Con la
+negociación antes de `changes/*`, `changes/archive/` queda ignorado y se pierde el historial en
+silencio. `sdd_check.py` comprueba las tres reglas, incluida esa.
 
 ## Qué hace el archivo
 

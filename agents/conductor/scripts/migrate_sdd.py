@@ -89,28 +89,24 @@ def apply_op(op, log):
         return True
 
     if kind == "gitignore":
+        # Comments are part of the data here: for `changes/*` plus `!changes/archive/`
+        # the order is the whole mechanism, so the explanation has to travel with it.
         path = pathlib.Path(op.get("file", ".gitignore"))
         entries = op["entries"]
-        missing = []
         existing = path.read_text().splitlines() if path.exists() else []
-        for entry in entries:
-            if entry in existing:
-                continue
-            missing.append(entry)
-        if not missing:
-            log(f"skip: {path} already ignores {', '.join(entries)}")
+        missing = [e for e in entries if e not in existing]
+        patterns = [e for e in missing if not e.startswith("#")]
+        if not patterns:
+            log(f"skip: {path} already has {' '.join(patterns) or 'the rules'}")
             return True
         if DRY:
-            log(f"would add to {path}: {', '.join(missing)}")
+            log(f"would add to {path}: {', '.join(patterns)}")
             return True
-        block = "\n# Local SDD state: suite config and scripts. Never commit.\n"
         with path.open("a") as fh:
-            if path.exists() and existing and not existing[-1].strip():
-                fh.write(block.lstrip("\n"))
-            else:
-                fh.write(block)
+            if existing and not existing[-1].strip():
+                fh.write("\n")
             fh.write("\n".join(missing) + "\n")
-        log(f"added to {path}: {', '.join(missing)}")
+        log(f"added to {path}: {', '.join(patterns)}")
         return True
 
     if kind == "setLayout":

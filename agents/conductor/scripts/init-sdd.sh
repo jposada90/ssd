@@ -44,6 +44,10 @@ if [ -z "${ROADMAP_SRC:-}" ]; then
   done
 fi
 
+if [ ! -f .gitignore ]; then
+  : > .gitignore
+fi
+
 FORCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -312,16 +316,20 @@ if [ -n "$ROADMAP_SRC" ] && [ -f "$ROADMAP_SRC/check_roadmap.py" ] && [ ! -f "$S
   created+=("$SDD_SCRIPTS/check_roadmap.py")
 fi
 
-# .sdd/ must never be committed. Adding it here means nobody can forget and then
-# leak local model choices and absolute paths into the team's history.
-if [ -f .gitignore ]; then
-  if ! grep -qxF '.sdd/' .gitignore 2>/dev/null; then
-    printf '\n# Local SDD state: suite config and scripts. Never commit.\n.sdd/\n' >> .gitignore
-    created+=(".gitignore (.sdd/)")
-  fi
-else
-  printf '.sdd/\n' > .gitignore
-  created+=(".gitignore (.sdd/)")
+# What must not be committed, and why. The changes/* pattern with the
+# !changes/archive/ negation is one mechanism, not two rules: git cannot re-include
+# a directory that its own parent excluded, so the negation has to come after.
+if ! grep -qxF '.sdd/' .gitignore 2>/dev/null; then
+  {
+    printf '\n# Local SDD state: suite config and scripts. Never commit.\n.sdd/\n'
+    printf '\n# Working documentation: drafts never enter version control. Documents\n'
+    printf '# reach git when the Conductor archives them into doc/es/.\n'
+    printf 'changes/*\n'
+    printf '# changes/archive/ holds the internal history of finished changes, which is\n'
+    printf '# worth keeping. The negation must come after changes/* or git ignores it.\n'
+    printf '!changes/archive/\n'
+  } >> .gitignore
+  created+=(".gitignore (.sdd/, changes/* except changes/archive/)")
 fi
 
 # .sdd/sdd.json records which SDD version last touched this project, the layout it

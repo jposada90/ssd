@@ -47,6 +47,8 @@ When archiving a finished change, two different sets of documents move to two di
 - **Product documentation** — `specs.md`, `tests.md`, the traceability table, `design.md`, `verify.md` — moves from `changes/<id>/` into `doc/es/<id>/`, keeping its filenames. Do not rewrite anything in the move. These are the documents that describe the product to a reader, so they get translated.
 - **Internal history** — `proposal.md` and `apply.md` — moves into `changes/archive/<id>/`. They record why the change happened and what was actually done, which is internal history rather than product documentation, so they stay out of the tree that gets translated. Leave them as plain files, not a compressed archive: inside git, a tarball is neither greppable nor readable in a diff. `changes/<id>/` ends up empty.
 
+`changes/` is gitignored, so nothing in it is in a commit while you work on it. That is why the two moves matter: the first one is what brings the product documentation into version control, the second what preserves the internal history. If a document has not been archived, nobody else can read it, so say so rather than assuming it is shared.
+
 Translating `doc/es/` into `doc/en/` is a mechanical pass with two hard rules:
 
 - Code blocks, identifiers, file paths, command names and config keys stay verbatim. Translating them breaks the reader's ability to run what the document says.
