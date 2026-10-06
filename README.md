@@ -191,17 +191,41 @@ código, identificadores y comandos sin traducir.
 Está pensado como **la puerta de entrada**: se pide a `conductor` y él decide si la petición es
 una tarea existente, una feature nueva, un bug, o una consulta que no necesita roadmap.
 
-En **Claude Code** es un subagente: invócalo por su nombre.
-
-```
-Usa el agente conductor para añadir filtrado por precio al catálogo
-```
-
 En **OpenCode** está definido con `mode: all`, así que aparece tanto como agente seleccionable
 de sesión como subagente. Elige `conductor` en la lista de agentes, o dile al agente principal
 que lo use.
 
 En **Pi** se instala con `pi-subagents` y se invoca por nombre.
+
+En **Claude Code** se le puede poner como agente de sesión, para no tener que delegar nunca:
+
+```json
+// ~/.claude/settings.json, o el .claude/settings.json de un proyecto
+{ "agent": "conductor" }
+```
+
+Eso tiene dos ventajas que como subagente no tiene. Recupera `AskUserQuestion`, que los subagentes
+de Claude Code pierden siempre, así que las rondas de modelos y las de verificación dejan de ser
+texto plano para que las presentes tú. Y la allowlist `Agent(tipo)` de `tools` solo funciona cuando
+el agente corre como hilo principal, así que el Conductor no puede lanzar nada fuera de los siete
+agentes de fase. Para una sesión suelta, `claude --agent conductor` tiene prioridad sobre el ajuste.
+
+### Cómo enruta el Conductor
+
+Por una tabla que está en su propio prompt, no por las descripciones de los agentes. Las
+descripciones son el respaldo para cuando el harness no ofrece nada mejor, y son solo 383 tokens
+de un presupuesto de 15.000 antes de aviso.
+
+La tabla dice qué agente para qué, y es **independiente de la fase**: los siete se pueden invocar
+en cualquier momento y para cualquier nodo, o para ninguno. Eso separa dos cosas que se confunden
+fácilmente:
+
+- La `phase` de un nodo avanza y no retrocede: no se repropone algo que ya tiene propuesta aprobada.
+- La disponibilidad de un agente no tiene nada que ver con eso. Puedes pedir un diseño de un nodo
+  que está en `task`, o verificar un cambio de la semana pasada, y ambas cosas son legítimas.
+
+Un `verifier` fuera de la fase verify es lo normal: es cómo vuelve un nodo desde `apply` tras una
+corrección, y cómo el usuario pide una segunda opinión sobre algo sin terminar.
 
 ### Los demás agentes también son invocables
 
