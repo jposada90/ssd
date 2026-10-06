@@ -114,7 +114,33 @@ if [ ! -f roadmap/main.json ]; then
   if [ -n "$ROADMAP_SRC" ] && [ -f "$ROADMAP_SRC/main.json" ]; then
     cp "$ROADMAP_SRC/main.json" roadmap/main.json
   else
-    cp "$(dirname "$0")/../main.json.template" roadmap/main.json 2>/dev/null || {
+    # Branch names come from the repo, not from a guess: hardcoding `main`
+    # writes false git info into the roadmap on a `master` repo.
+    # A branch name, never the literal "HEAD" that git reports when the branch is
+    # unborn or origin/HEAD is unresolved.
+    is_branch() { [ -n "$1" ] && [ "$1" != "HEAD" ]; }
+
+    current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    if ! is_branch "$current_branch"; then
+      # Unborn branch: rev-parse reports HEAD, but .git/HEAD still names it.
+      current_branch="$(sed -n 's|^ref: refs/heads/||p' .git/HEAD 2>/dev/null | head -1)"
+    fi
+
+    default_branch="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)"
+    default_branch="${default_branch#origin/}"
+    if ! is_branch "$default_branch"; then
+      # No remote to ask, so the checked-out branch is the best evidence.
+      default_branch="$current_branch"
+    fi
+    if ! is_branch "$default_branch"; then
+      default_branch="$(git config --get init.defaultBranch 2>/dev/null)"
+      is_branch "$default_branch" || default_branch="main"
+    fi
+    is_branch "$current_branch" || current_branch="$default_branch"
+
+    sed -e "s|__DEFAULT_BRANCH__|$default_branch|g" \
+        -e "s|__CURRENT_BRANCH__|$current_branch|g" \
+        "$(dirname "$0")/../main.json.template" > roadmap/main.json 2>/dev/null || {
       echo "no main.json template found; create roadmap/main.json by hand" >&2
     }
   fi

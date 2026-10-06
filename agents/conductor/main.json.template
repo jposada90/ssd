@@ -9,9 +9,9 @@
   "status": "draft",
   "openQuestions": [],
   "gitInfo": {
-    "mainBranch": "main",
-    "parentBranch": "main",
-    "featureBranch": "main",
+    "mainBranch": "__DEFAULT_BRANCH__",
+    "parentBranch": "__DEFAULT_BRANCH__",
+    "featureBranch": "__CURRENT_BRANCH__",
     "statusBranch": "development"
   },
   "deliver": [],
